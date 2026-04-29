@@ -1,0 +1,32 @@
+# Entornos virtuales
+venv/
+env/
+.env/
+.venv/
+
+# Archivos compilados y de caché de Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Pytest y cobertura
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Playwright
+test-results/
+
+# Datos generados por el scraper (no subir a git)
+modules/*/data/*.json
+modules/*/data/
+
+# IDEs y editores
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Sistemas operativos
+.DS_Store
+Thumbs.db
