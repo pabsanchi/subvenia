@@ -15,4 +15,10 @@ Este documento define las reglas estrictas de comportamiento y desarrollo para c
 ## Roles Definidos
 
 - **Agente Scraper (Módulo 1):** Encargado de la extracción de datos. Debe priorizar la resiliencia (uso de `try/except` en la extracción) y garantizar el contrato de datos estricto para evitar envenenar el RAG.
+- **Agente DB (Módulo 2):** Responsable de la persistencia de datos. Debe levantar la base de datos usando contenedores.
 - **Agente RAG / Backend (Próximos módulos):** Encargado de ingerir los datos en formato JSON, procesarlos y exponerlos. Debe asumir que los datos de entrada cumplen el contrato definido por el Scraper.
+
+## Reglas Específicas: Fase 2 (Base de Datos)
+- **Infraestructura:** La base de datos es Elasticsearch (v8.14.0) y debe levantarse localmente mediante `docker-compose`.
+- **Seguridad:** Se debe usar `xpack.security.enabled=true` leyendo contraseñas de un `.env`, pero `xpack.security.http.ssl.enabled=false` para agilizar el MVP.
+- **Mapping:** El script de ingesta (Python) debe crear el índice `ayudas_sociales` y mapear los campos extraídos del Módulo 1. Es obligatorio incluir un campo `embedding` de tipo `dense_vector` (768 dimensiones) para preparar el futuro RAG, rellenándolo con ceros (mock) en esta fase.

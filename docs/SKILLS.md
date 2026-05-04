@@ -33,3 +33,30 @@ Seguido de la descarga de binarios en el venv:
 ```bash
 playwright install chromium
 ```
+## Módulo 2: Ingesta, Base de Datos y Visualización (Elasticsearch + Kibana en Docker)
+
+### Gestión de Contenedores
+El archivo `docker-compose.yaml` está en la raíz del proyecto. Los comandos Docker deben ejecutarse desde ahí:
+```bash
+cd /home/dev/projects/subvenia
+# Levantar en segundo plano
+docker compose up -d
+# Ver logs de un contenedor
+docker logs subvenia_elasticsearch
+# Apagar todo
+docker compose down
+```
+
+### Ejecutar Pruebas (Tests)
+Las pruebas validan el mapping del índice, la inyección del embedding mock y el manejo de errores, todo sin necesidad de levantar Elasticsearch:
+```bash
+cd modules/modulo2-db
+PYTHONPATH=. pytest tests/ -v
+```
+
+### Ejecutar la Ingesta
+El script leerá el `ayudas.json` del Módulo 1 y lo inyectará en Elasticsearch. **Los contenedores deben estar levantados antes de ejecutar esto:**
+```bash
+cd modules/modulo2-db
+PYTHONPATH=. python src/ingest.py
+```
