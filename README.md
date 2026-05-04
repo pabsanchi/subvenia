@@ -35,10 +35,10 @@ Cuando el proyecto necesite salir de la fase de simulación para recopilar datos
 
 ---
 
-### ⚪ Módulo 2: Ingesta y Base de Datos Vectorial (Próxima Fase)
+### ⚪ Módulo 2: Ingesta, Base de Datos y Visualización (Próxima Fase)
 **Estado:** Pendiente ⏳
-**Objetivo:** Consumir el archivo `ayudas.json` generado por el Módulo 1, crear embeddings text-to-vector para cada subvención y almacenarlos en una Vector DB local (ej. ChromaDB).
+**Objetivo:** Consumir el archivo `ayudas.json` generado por el Módulo 1, crear embeddings text-to-vector para cada subvención y almacenarlos utilizando **Elasticsearch**. Se aprovecharán las capacidades nativas de búsqueda vectorial (kNN) de Elasticsearch para cubrir las necesidades del RAG, empleando además **Kibana** para construir los dashboards visuales de analítica.
 
 ### ⚪ Módulo 3: Interfaz LLM y Retrieval (RAG)
 **Estado:** Pendiente ⏳
-**Objetivo:** Interfaz conversacional/backend que recibe la pregunta del usuario, busca en la Vector DB el contexto de las ayudas relevantes y usa un LLM para formular una respuesta fundamentada ("grounded") en la convocatoria real.
+**Objetivo:** Interfaz conversacional/backend que recibe la pregunta del usuario, busca en Elasticsearch el contexto de las ayudas más relevantes (búsqueda híbrida/vectorial) y usa un LLM para formular una respuesta fundamentada ("grounded") en la convocatoria real.
