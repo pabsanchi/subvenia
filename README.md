@@ -52,5 +52,5 @@ Cuando el proyecto avance a la Fase 3 (RAG), los embeddings mock (ceros) deberá
 3. **Dashboards Kibana:** Configurar visualizaciones en Kibana (accesible en `http://localhost:5601`) para explorar las subvenciones indexadas.
 
 ### ⚪ Módulo 3: Interfaz LLM y Retrieval (RAG)
-**Estado:** Pendiente ⏳
+**Estado:** Próxima Fase 🚀
 **Objetivo:** Interfaz conversacional/backend que recibe la pregunta del usuario, busca en Elasticsearch el contexto de las ayudas más relevantes (búsqueda híbrida/vectorial) y usa un LLM para formular una respuesta fundamentada ("grounded") en la convocatoria real.
