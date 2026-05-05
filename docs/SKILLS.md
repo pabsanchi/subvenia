@@ -47,11 +47,19 @@ docker logs subvenia_elasticsearch
 docker compose down
 ```
 
-### Ejecutar Pruebas (Tests)
-Las pruebas validan el mapping del índice, la inyección del embedding mock y el manejo de errores, todo sin necesidad de levantar Elasticsearch:
+### Ejecución de Pruebas (Tests)
+El Módulo 2 cuenta con dos suites de pruebas:
+
+1. **Unitarias (Mock):** Validan el mapping y manejo de errores sin levantar Elasticsearch:
 ```bash
 cd modules/modulo2-db
-PYTHONPATH=. pytest tests/ -v
+PYTHONPATH=. pytest tests/test_db.py -v
+```
+
+2. **Integración (Real):** Interactúan con el contenedor de Elasticsearch insertando datos en un índice temporal y verificando búsquedas reales. Si el contenedor está apagado, hacen `SKIP`.
+```bash
+cd modules/modulo2-db
+PYTHONPATH=. pytest tests/test_integration.py -v
 ```
 
 ### Ejecutar la Ingesta

@@ -76,9 +76,9 @@ def get_es_client() -> Elasticsearch:
     return es
 
 
-def create_index(es: Elasticsearch) -> None:
+def create_index(es: Elasticsearch, index_name: str = INDEX_NAME) -> None:
     """
-    Crea el índice 'ayudas_sociales' con el mapping definido.
+    Crea el índice con el mapping definido.
 
     El mapping se ajusta al contrato de datos del Módulo 1:
       - keyword: source_id, issuer, status, url, source_type, region
@@ -90,6 +90,7 @@ def create_index(es: Elasticsearch) -> None:
 
     Args:
         es: Cliente de Elasticsearch conectado.
+        index_name: Nombre del índice a crear.
     """
     mapping = {
         "mappings": {
@@ -123,14 +124,14 @@ def create_index(es: Elasticsearch) -> None:
         }
     }
 
-    if not es.indices.exists(index=INDEX_NAME):
-        es.indices.create(index=INDEX_NAME, body=mapping)
-        logger.info(f"Índice '{INDEX_NAME}' creado con éxito.")
+    if not es.indices.exists(index=index_name):
+        es.indices.create(index=index_name, body=mapping)
+        logger.info(f"Índice '{index_name}' creado con éxito.")
     else:
-        logger.info(f"El índice '{INDEX_NAME}' ya existe. No se modifica.")
+        logger.info(f"El índice '{index_name}' ya existe. No se modifica.")
 
 
-def process_and_ingest(es: Elasticsearch, data_path: Path) -> int:
+def process_and_ingest(es: Elasticsearch, data_path: Path, index_name: str = INDEX_NAME) -> int:
     """
     Lee el JSON del Módulo 1, inyecta embeddings mock y hace bulk insert.
 
@@ -143,6 +144,7 @@ def process_and_ingest(es: Elasticsearch, data_path: Path) -> int:
     Args:
         es: Cliente de Elasticsearch conectado.
         data_path: Ruta al archivo ayudas.json generado por el Módulo 1.
+        index_name: Nombre del índice donde se insertarán los datos.
 
     Returns:
         Número de documentos indexados exitosamente.
@@ -169,7 +171,7 @@ def process_and_ingest(es: Elasticsearch, data_path: Path) -> int:
         doc["embedding"] = mock_embedding
 
         action = {
-            "_index": INDEX_NAME,
+            "_index": index_name,
             "_id": doc.get("source_id"),
             "_source": doc
         }

@@ -59,10 +59,18 @@ El script:
 
 ## Ejecución de Pruebas
 
-Los tests se ejecutan sin necesidad de tener los contenedores levantados:
+### Pruebas Unitarias (Mock)
+Los tests unitarios se ejecutan sin necesidad de tener los contenedores levantados:
 ```bash
-PYTHONPATH=. pytest tests/ -v
+PYTHONPATH=. pytest tests/test_db.py -v
 ```
+
+### Pruebas de Integración (Real)
+Las pruebas de integración interactúan con el contenedor real de Elasticsearch. Si el contenedor no está disponible, las pruebas se saltarán automáticamente (`SKIP`) para no romper el flujo:
+```bash
+PYTHONPATH=. pytest tests/test_integration.py -v
+```
+*(También puedes ejecutar `pytest tests/ -v` para lanzar ambas suites).*
 
 ## Mapping del Índice `ayudas_sociales`
 
