@@ -158,9 +158,11 @@ def process_and_ingest(es: Elasticsearch, data_path: Path) -> int:
         logger.warning("El archivo JSON está vacío. No hay datos que indexar.")
         return 0
 
-    # Mock embedding: array de ceros flotantes (se reemplazará por
-    # embeddings reales generados por un modelo en la Fase 3)
-    mock_embedding = [0.0] * EMBEDDING_DIMS
+    # Mock embedding: vector con valores mínimos no-cero.
+    # La similitud coseno de Elasticsearch rechaza vectores de magnitud cero,
+    # por lo que usamos un valor ínfimo (1e-7) que no afectará a los
+    # resultados de búsqueda cuando se reemplacen por embeddings reales.
+    mock_embedding = [1e-7] * EMBEDDING_DIMS
 
     actions = []
     for doc in data:

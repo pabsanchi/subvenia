@@ -159,10 +159,10 @@ def test_process_and_ingest(mock_bulk, mock_es_client, sample_json):
     assert doc["_index"] == INDEX_NAME
     assert doc["_id"] == "BDNS-TEST"
 
-    # Comprobar inyección del embedding mock (768 ceros)
+    # Comprobar inyección del embedding mock (valores mínimos no-cero)
     assert "embedding" in doc["_source"]
     assert len(doc["_source"]["embedding"]) == EMBEDDING_DIMS
-    assert all(v == 0.0 for v in doc["_source"]["embedding"])
+    assert all(v == 1e-7 for v in doc["_source"]["embedding"])
 
 
 @patch("src.ingest.helpers.bulk")

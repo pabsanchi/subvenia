@@ -40,10 +40,10 @@ Cuando el proyecto necesite salir de la fase de simulación para recopilar datos
 **Objetivo:** Consumir el archivo `ayudas.json` generado por el Módulo 1, crear embeddings text-to-vector para cada subvención y almacenarlos utilizando **Elasticsearch**. Se aprovecharán las capacidades nativas de búsqueda vectorial (kNN) de Elasticsearch para cubrir las necesidades del RAG, empleando además **Kibana** para construir los dashboards visuales de analítica.
 
 **Capacidades Actuales:**
-- **Infraestructura:** Elasticsearch y Kibana (v8.14.0) dockerizados y configurados localmente con seguridad nativa (`xpack.security`).
-- **Ingesta Segura:** Script `ingest.py` que lee los datos generados por el scraper, establece conexión segura usando variables `.env` y emplea la API Bulk de Elasticsearch.
-- **Mapping y RAG Ready:** Índice `ayudas_sociales` configurado con mapeos de campos específicos (`keyword`, `text` con analyzer `spanish`, `date`) y, de forma crítica, un campo `embedding` (tipo `dense_vector`, 768 dims, similitud `cosine`) preparado para la futura generación real de embeddings (actualmente mockeado con ceros).
-- **Testing Aislado:** Batería de pruebas con `pytest` y `unittest.mock` que verifica el mapping de la base de datos y la correcta estructura de los datos inyectados, sin requerir levantar el contenedor de Elasticsearch.
+- **Infraestructura:** Elasticsearch y Kibana (v8.14.0) dockerizados y configurados localmente con seguridad nativa (`xpack.security`). Kibana es accesible en `http://localhost:5601`.
+- **Ingesta Segura:** Script `ingest.py` que lee los datos generados por el scraper, establece conexión segura usando variables `.env` y emplea la API Bulk de Elasticsearch. **Integración verificada:** se ha ejecutado exitosamente contra el contenedor real, indexando 3 subvenciones.
+- **Mapping y RAG Ready:** Índice `ayudas_sociales` configurado con mapeos de campos específicos (`keyword`, `text` con analyzer `spanish`, `date`) y, de forma crítica, un campo `embedding` (tipo `dense_vector`, 768 dims, similitud `cosine`) preparado para la futura generación real de embeddings. **Nota técnica:** se usa `1e-7` como mock, ya que la similitud `cosine` rechaza vectores de magnitud cero (`0.0`).
+- **Testing Aislado y Versiones Pinned:** Batería de pruebas con `pytest` y `unittest.mock` que verifica el mapping y la estructura de los datos sin requerir levantar Elasticsearch. Además, el cliente Python (`elasticsearch`) se ha fijado a la versión `8.14.x` para prevenir bloqueos de compatibilidad con el servidor.
 
 ⚠️ **Siguiente Paso Crítico (Post-MVP)**
 Cuando el proyecto avance a la Fase 3 (RAG), los embeddings mock (ceros) deberán reemplazarse por vectores reales:
