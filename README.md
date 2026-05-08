@@ -48,7 +48,7 @@ Cuando el proyecto necesite salir de la fase de simulación para recopilar datos
 ⚠️ **Siguiente Paso Crítico (Post-MVP)**
 Cuando el proyecto avance a la Fase 3 (RAG), los embeddings mock (ceros) deberán reemplazarse por vectores reales:
 1. **Modelo de Embeddings:** Integrar un modelo de tipo sentence-transformers (ej. `all-MiniLM-L6-v2` o similar de 768 dims) para generar vectores semánticos de cada subvención.
-2. **Re-indexación:** Actualizar el script de ingesta para generar los embeddings reales a partir de los campos `title` + `description`, y re-indexar los documentos.
+2. **Actualización de Embeddings:** Utilizar el script `src/update_embeddings.py` que permite inyectar (vía API bulk update) los vectores reales generados, sin sobreescribir el resto de los metadatos.
 3. **Dashboards Kibana:** Configurar visualizaciones en Kibana (accesible en `http://localhost:5601`) para explorar las subvenciones indexadas.
 
 ### ⚪ Módulo 3: Interfaz LLM y Retrieval (RAG)
