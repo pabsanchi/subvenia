@@ -51,6 +51,6 @@ Cuando el proyecto avance a la Fase 3 (RAG), los embeddings mock (ceros) deberá
 2. **Actualización de Embeddings:** Utilizar el script `src/update_embeddings.py` que permite inyectar (vía API bulk update) los vectores reales generados, sin sobreescribir el resto de los metadatos.
 3. **Dashboards Kibana:** Configurar visualizaciones en Kibana (accesible en `http://localhost:5601`) para explorar las subvenciones indexadas.
 
-### ⚪ Módulo 3: Interfaz LLM y Retrieval (RAG)
-**Estado:** Próxima Fase 🚀
-**Objetivo:** Interfaz conversacional/backend que recibe la pregunta del usuario, busca en Elasticsearch el contexto de las ayudas más relevantes (búsqueda híbrida/vectorial) y usa un LLM para formular una respuesta fundamentada ("grounded") en la convocatoria real.
+### 🟢 Módulo 3: Interfaz LLM y Retrieval (RAG)
+**Estado:** MVP Completado y Funcional ✅
+**Objetivo:** Motor de Retrieval-Augmented Generation (`rag_core.py`) que recibe una pregunta del usuario, la vectoriza usando `sentence-transformers`, busca en Elasticsearch el contexto de las ayudas más relevantes mediante similitud coseno (kNN), y usa un modelo de lenguaje local (Ollama - `llama3`) para formular una respuesta fundamentada ("grounded") exclusivamente en el contexto recuperado.

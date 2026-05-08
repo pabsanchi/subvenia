@@ -68,3 +68,25 @@ El script leerá el `ayudas.json` del Módulo 1 y lo inyectará en Elasticsearch
 cd modules/modulo2-db
 PYTHONPATH=. python src/ingest.py
 ```
+
+## Módulo 3: Motor RAG (Retrieval-Augmented Generation)
+
+Este módulo conecta Elasticsearch y Ollama para generar respuestas contextuales.
+
+### Requisitos Previos
+1. Contenedores de Elasticsearch levantados y con los datos vectorizados indexados.
+2. Servidor local de Ollama corriendo en el puerto `11434` con el modelo `llama3` descargado (`ollama run llama3`).
+
+### Ejecutar el Motor RAG (Prueba)
+Ejecutará una pregunta de prueba hardcodeada para validar la conexión entre ES y Ollama. Nota: la primera ejecución descargará los pesos del modelo de embeddings (aprox. 1.1GB).
+```bash
+cd modules/modulo3-rag
+PYTHONPATH=. python src/rag_core.py
+```
+
+### Ejecutar Pruebas (Tests)
+Las pruebas usan mocks y no requieren que Elasticsearch u Ollama estén encendidos:
+```bash
+cd modules/modulo3-rag
+PYTHONPATH=. pytest tests/ -v
+```
