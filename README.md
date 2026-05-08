@@ -48,9 +48,13 @@ Cuando el proyecto necesite salir de la fase de simulación para recopilar datos
 ⚠️ **Siguiente Paso Crítico (Post-MVP)**
 Cuando el proyecto avance a la Fase 3 (RAG), los embeddings mock (ceros) deberán reemplazarse por vectores reales:
 1. **Modelo de Embeddings:** Integrar un modelo de tipo sentence-transformers (ej. `all-MiniLM-L6-v2` o similar de 768 dims) para generar vectores semánticos de cada subvención.
-2. **Re-indexación:** Actualizar el script de ingesta para generar los embeddings reales a partir de los campos `title` + `description`, y re-indexar los documentos.
+2. **Actualización de Embeddings:** Utilizar el script `src/update_embeddings.py` que permite inyectar (vía API bulk update) los vectores reales generados, sin sobreescribir el resto de los metadatos.
 3. **Dashboards Kibana:** Configurar visualizaciones en Kibana (accesible en `http://localhost:5601`) para explorar las subvenciones indexadas.
 
-### ⚪ Módulo 3: Interfaz LLM y Retrieval (RAG)
-**Estado:** Próxima Fase 🚀
-**Objetivo:** Interfaz conversacional/backend que recibe la pregunta del usuario, busca en Elasticsearch el contexto de las ayudas más relevantes (búsqueda híbrida/vectorial) y usa un LLM para formular una respuesta fundamentada ("grounded") en la convocatoria real.
+### 🟢 Módulo 3: Interfaz LLM y Retrieval (RAG)
+**Estado:** MVP Completado y Funcional ✅
+**Objetivo:** Motor de Retrieval-Augmented Generation (`rag_core.py`) que recibe una pregunta del usuario, la vectoriza usando `sentence-transformers`, busca en Elasticsearch el contexto de las ayudas más relevantes mediante similitud coseno (kNN), y usa un modelo de lenguaje local (Ollama - `llama3`) para formular una respuesta fundamentada ("grounded") exclusivamente en el contexto recuperado.
+
+### 🟢 Módulo 4: Frontend (Streamlit)
+**Estado:** MVP Completado y Funcional ✅
+**Objetivo:** Interfaz gráfica final orientada al usuario desarrollada con Streamlit (`app.py`). Actúa como la capa visual que consume el motor RAG del Módulo 3, manteniendo el historial de la conversación (memoria de sesión) y proporcionando una experiencia conversacional interactiva (chat) donde el usuario puede exponer su situación y recibir asesoramiento respaldado por las convocatorias oficiales.

@@ -57,6 +57,20 @@ El script:
 4. Inyecta un embedding mock (768 ceros) a cada documento.
 5. Indexa todo usando la API bulk.
 
+## Actualización de Embeddings
+
+Una vez que los documentos ya están en Elasticsearch y tienes un archivo JSON con los vectores reales generados (por ejemplo, desde el Módulo de Vectorización), puedes actualizar únicamente el campo de los embeddings sin sobreescribir el resto de los metadatos usando:
+```bash
+PYTHONPATH=. python src/update_embeddings.py --file ../modulo1-scraper/data/ayudas_con_vectores.json
+```
+
+En un futuro se implementará la forma de subir lo JSON directamente con los vectores directamente.
+
+**Parámetros:**
+- `--file`: *(Obligatorio)* Ruta relativa o absoluta al archivo JSON que contiene los documentos con los campos del vector (`embedding` o `float_vector`) y el identificador (`id` o `source_id`).
+
+El script usará la operación `update` de la API bulk para inyectar los nuevos vectores de forma eficiente en los registros existentes.
+
 ## Ejecución de Pruebas
 
 ### Pruebas Unitarias (Mock)
