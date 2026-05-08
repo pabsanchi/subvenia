@@ -90,3 +90,15 @@ Las pruebas usan mocks y no requieren que Elasticsearch u Ollama estén encendid
 cd modules/modulo3-rag
 PYTHONPATH=. pytest tests/ -v
 ```
+
+## Módulo 4: Frontend (Streamlit)
+
+Este módulo proporciona la interfaz gráfica web para interactuar con el motor RAG. 
+
+### Ejecutar la Interfaz de Usuario
+Asegúrate de que los contenedores de Elasticsearch están levantados y Ollama está corriendo.
+```bash
+cd modules/modulo4-frontend
+PYTHONPATH=. ../../venv/bin/streamlit run src/app.py
+```
+La aplicación estará disponible en `http://localhost:8501`.

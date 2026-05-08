@@ -24,9 +24,10 @@ Este documento define las reglas estrictas de comportamiento y desarrollo para c
 - **Mapping y Embeddings:** El script de ingesta (Python) debe crear el índice `ayudas_sociales` y mapear los campos extraídos del Módulo 1. Es obligatorio incluir un campo `embedding` de tipo `dense_vector` (768 dimensiones, similitud `cosine`) para preparar el futuro RAG. **Importante:** La similitud `cosine` rechaza vectores de magnitud cero, por lo que el mock de embeddings en la fase MVP debe usar valores mínimos no-cero (ej. `1e-7`).
 - **Compatibilidad de Cliente:** Asegurar que la versión de la librería `elasticsearch` en Python está anclada (`pinned`) a la versión `8.14.x` para que coincida exactamente con la versión del servidor en Docker. Versiones mayores del cliente pueden causar cuelgues (hangs) debido a comprobaciones internas de compatibilidad de producto.
 
-## Siguientes Pasos: Fase 3 y 4 (Frontend / Consumo del RAG)
-El Motor RAG (Módulo 3) ya está construido en `modules/modulo3-rag/`, implementando la búsqueda vectorial contra Elasticsearch y la generación de respuestas mediante Ollama (modelo `llama3`). 
+## Siguientes Pasos
+El **MVP está completado (Fases 1 a 4)**. Todos los módulos operativos (Scraper, DB, RAG Core, y Frontend) están implementados y funcionales de extremo a extremo.
 
-El próximo Agente deberá:
-1. Diseñar e implementar una interfaz de usuario (UI) o API para que los usuarios finales interactúen con el RAG.
-2. Afinar los *prompts* y ajustar el número de resultados (`top_k`) si es necesario para mejorar la calidad de las respuestas.
+Futuros Agentes podrán centrarse en:
+- Escalabilidad y recolección de datos masivos (quitar `use_mock=True` del scraper).
+- Mejoras del prompt del RAG y ajuste de la calidad de respuesta.
+- Autenticación o despliegue en la nube.
