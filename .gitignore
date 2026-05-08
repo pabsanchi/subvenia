@@ -4,6 +4,10 @@ env/
 .env/
 .venv/
 
+# Archivos de secretos (dotenv)
+.env
+modules/*/.env
+
 # Archivos compilados y de caché de Python
 __pycache__/
 *.py[cod]

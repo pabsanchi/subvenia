@@ -35,10 +35,22 @@ Cuando el proyecto necesite salir de la fase de simulación para recopilar datos
 
 ---
 
-### ⚪ Módulo 2: Ingesta, Base de Datos y Visualización (Próxima Fase)
-**Estado:** Pendiente ⏳
+### 🟢 Módulo 2: Ingesta, Base de Datos y Visualización (`modules/modulo2-db/`)
+**Estado:** MVP Completado y Funcional ✅
 **Objetivo:** Consumir el archivo `ayudas.json` generado por el Módulo 1, crear embeddings text-to-vector para cada subvención y almacenarlos utilizando **Elasticsearch**. Se aprovecharán las capacidades nativas de búsqueda vectorial (kNN) de Elasticsearch para cubrir las necesidades del RAG, empleando además **Kibana** para construir los dashboards visuales de analítica.
 
+**Capacidades Actuales:**
+- **Infraestructura:** Elasticsearch y Kibana (v8.14.0) dockerizados y configurados localmente con seguridad nativa (`xpack.security`). Kibana es accesible en `http://localhost:5601`.
+- **Ingesta Segura:** Script `ingest.py` que lee los datos generados por el scraper, establece conexión segura usando variables `.env` y emplea la API Bulk de Elasticsearch. **Integración verificada:** se ha ejecutado exitosamente contra el contenedor real, indexando 3 subvenciones.
+- **Mapping y RAG Ready:** Índice `ayudas_sociales` configurado con mapeos de campos específicos (`keyword`, `text` con analyzer `spanish`, `date`) y, de forma crítica, un campo `embedding` (tipo `dense_vector`, 768 dims, similitud `cosine`) preparado para la futura generación real de embeddings. **Nota técnica:** se usa `1e-7` como mock, ya que la similitud `cosine` rechaza vectores de magnitud cero (`0.0`).
+- **Testing Aislado e Integración:** Batería de pruebas unitarias (`test_db.py`) que mockea la conexión, y **pruebas de integración** (`test_integration.py`) que interactúan directamente con el contenedor real (haciendo un `SKIP` automático si Docker no está encendido). El cliente Python (`elasticsearch`) se ha fijado a la versión `8.14.x` para prevenir bloqueos de compatibilidad con el servidor.
+
+⚠️ **Siguiente Paso Crítico (Post-MVP)**
+Cuando el proyecto avance a la Fase 3 (RAG), los embeddings mock (ceros) deberán reemplazarse por vectores reales:
+1. **Modelo de Embeddings:** Integrar un modelo de tipo sentence-transformers (ej. `all-MiniLM-L6-v2` o similar de 768 dims) para generar vectores semánticos de cada subvención.
+2. **Re-indexación:** Actualizar el script de ingesta para generar los embeddings reales a partir de los campos `title` + `description`, y re-indexar los documentos.
+3. **Dashboards Kibana:** Configurar visualizaciones en Kibana (accesible en `http://localhost:5601`) para explorar las subvenciones indexadas.
+
 ### ⚪ Módulo 3: Interfaz LLM y Retrieval (RAG)
-**Estado:** Pendiente ⏳
+**Estado:** Próxima Fase 🚀
 **Objetivo:** Interfaz conversacional/backend que recibe la pregunta del usuario, busca en Elasticsearch el contexto de las ayudas más relevantes (búsqueda híbrida/vectorial) y usa un LLM para formular una respuesta fundamentada ("grounded") en la convocatoria real.
