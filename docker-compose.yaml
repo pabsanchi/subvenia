@@ -35,9 +35,9 @@ services:
     networks:
       - subvenia_net
     # MODIFICAMOS ESTO: Ahora Kibana esperará pacientemente la prueba de salud
-    depends_on:
-      elasticsearch:
-        condition: service_healthy
+    # depends_on:
+    #   elasticsearch:
+    #     condition: service_healthy
 
 volumes:
   # Volumen persistente
