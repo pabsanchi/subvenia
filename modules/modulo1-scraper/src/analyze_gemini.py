@@ -351,8 +351,8 @@ def actualizar_convocatorias_full(nueva_entrada, filename=None):
     logger.info(f"Convocatoria enriquecida guardada en {filename.name}.")
 
 
-def guardar_convocatoria_full(numero_convocatoria_str, gemini_result):
-    """Une los metadatos raw con la extracción estructurada de Gemini."""
+def guardar_convocatoria_full(numero_convocatoria_str, gemini_result, vectorizer=None):
+    """Une los metadatos raw con la extracción estructurada de Gemini y genera embedding."""
     if gemini_result[0] != 0:
         return
 
@@ -362,6 +362,15 @@ def guardar_convocatoria_full(numero_convocatoria_str, gemini_result):
         convocatoria_completa['beneficiaries'] = gemini_result[1]['beneficiaries']
         convocatoria_completa['deadline'] = gemini_result[1].get('deadline', 'desconocido')
         convocatoria_completa['geographic_scope'] = gemini_result[1].get('geographic_scope', 'desconocido')
+
+        # Vectorizar atómicamente antes de guardar en convocatorias_full.json
+        if vectorizer is not None:
+            from src.vectorizer import compile_text_for_embedding
+            text_to_embed = compile_text_for_embedding(convocatoria_completa)
+            logger.info(f"Vectorizando convocatoria {numero_convocatoria_str}...")
+            embedding = vectorizer.vectorize(text_to_embed)
+            convocatoria_completa['embedding'] = embedding
+            logger.info(f"✅ Vector generado con éxito ({len(embedding)} dimensiones).")
 
         actualizar_convocatorias_full(convocatoria_completa)
     else:
@@ -477,10 +486,10 @@ def extraer_datos_convocatoria(ruta_pdf):
 # Flujos de orquestación de completado
 # ===========================================================================
 
-def completar_convocatoria(nConvocatoria):
+def completar_convocatoria(nConvocatoria, vectorizer=None):
     """
     Descarga el primer PDF asociado a la convocatoria, llama a Gemini,
-    guarda el resultado consolidado y limpia los recursos locales.
+    guarda el resultado consolidado y vectorizado, y limpia los recursos locales.
     """
     nConvocatoria_str = str(nConvocatoria)
 
@@ -520,7 +529,7 @@ def completar_convocatoria(nConvocatoria):
         resultado = extraer_datos_convocatoria(ruta_pdf)
         if resultado[0] == 0:
             logger.info(f"✅ Extracción semántica exitosa para la convocatoria {nConvocatoria_str}")
-            guardar_convocatoria_full(nConvocatoria_str, resultado)
+            guardar_convocatoria_full(nConvocatoria_str, resultado, vectorizer=vectorizer)
     finally:
         # Garantizamos la eliminación del archivo PDF temporal local para liberar espacio
         if ruta_pdf.exists():
@@ -552,6 +561,17 @@ def flujo_completado_masivo_convocatorias():
         print("\n[AVISO CRÍTICO] La API de Gemini no está accesible (clave incorrecta, sin red o cuota agotada). Revisa tu archivo .env e inténtalo más tarde.\n")
         return
 
+    # Instanciamos el vectorizador local una sola vez al inicio del flujo masivo
+    logger.info("Cargando el vectorizador para los embeddings locales...")
+    try:
+        from src.vectorizer import ConvocatoriaVectorizer
+        vectorizer = ConvocatoriaVectorizer()
+    except Exception as e:
+        logger.error(f"🛑 No se pudo instanciar el vectorizador: {e}")
+        print("\n[AVISO CRÍTICO] Error al inicializar el modelo local de embeddings sentence-transformers.")
+        print(f"Detalles: {e}\n")
+        return
+
     for i in range(ya_rellenadas, total_raws):
         logger.info(f"\n--- Procesando registro en posición {i+1}/{total_raws} ---")
 
@@ -563,8 +583,8 @@ def flujo_completado_masivo_convocatorias():
 
         n_conv_str = str(conv_raw.get('numeroConvocatoria'))
 
-        # Llamar al flujo de completado individual
-        resultado = completar_convocatoria(n_conv_str)
+        # Llamar al flujo de completado individual con el vectorizador inyectado
+        resultado = completar_convocatoria(n_conv_str, vectorizer=vectorizer)
         codigo_error = resultado[0]
 
         if codigo_error == 0:

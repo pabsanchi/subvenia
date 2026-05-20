@@ -16,6 +16,7 @@ El scraper sigue un diseño modular con separación de responsabilidades:
 * **`ScraperBDNS`**: Orquestador de simulación. Gestiona el ciclo de vida del navegador (Playwright) y delega la extracción al `HTMLParser`.
 * **`fetch_raw.py` (Scraper Real API)**: Descarga de forma incremental todas las convocatorias oficiales del portal BDNS aplicando filtros (Comunidad Valenciana, destinatarios personas físicas). Evita duplicidades validando IDs ya existentes.
 * **`analyze_gemini.py` (Análisis y Enriquecimiento)**: Lee las convocatorias raw, descarga los PDFs oficiales de cada subvención localmente de forma temporal, los sube a la API de Gemini (`gemini-2.5-flash-lite`) para realizar una extracción y clasificación de requisitos estructurada bajo un esquema JSON de tipos estrictos, y consolida los resultados enriquecidos.
+* **`vectorizer.py` (Vectorización Atómica) [NUEVO]**: Toma la convocatoria enriquecida, compila todos sus campos de beneficiarios y requisitos en un texto descriptivo fluido en español, y genera de forma local el vector de embedding correspondiente (768 dimensiones) usando el modelo `intfloat/multilingual-e5-base` de `SentenceTransformer`. El vector es inyectado de forma atómica en el mismo flujo de guardado de Gemini, garantizando consistencia total de datos.
 
 ---
 
@@ -27,17 +28,18 @@ modulo1-scraper/
 │   ├── __init__.py
 │   ├── scraper.py                    # Script MVP de simulación de raspado web (Playwright)
 │   ├── fetch_raw.py                  # Script de extracción real incremental desde la API de BDNS
-│   └── analyze_gemini.py             # Script de descarga de PDFs y análisis semántico con Gemini
+│   ├── analyze_gemini.py             # Script de descarga de PDFs y análisis semántico con Gemini
+│   └── vectorizer.py                 # [NUEVO] Vectorizador local SentenceTransformer (E5) para guardado atómico
 ├── tests/
 │   ├── __init__.py
 │   ├── test_scraper.py               # 15 tests unitarios organizados en 4 clases para la simulación
-│   └── test_real_scraper.py          # [NUEVO] Tests unitarios del flujo real de BDNS y control de errores
+│   └── test_real_scraper.py          # Tests unitarios del flujo real de BDNS, vectorizador y control de errores
 ├── data/
 │   ├── ayudas.json                   # Datos de ayudas generados por la simulación
 │   ├── lista_convocatorias_raw.json  # Convocatorias crudas recogidas incrementalmente de la API
 │   ├── seguimiento_procesos.json     # Registro de checkpoints y contadores de progreso
-│   └── convocatorias_full.json       # Convocatorias finales enriquecidas con análisis semántico
-├── requirements.txt                  # Dependencias del módulo actualizadas (playwright, bdns-fetch, google-generativeai)
+│   └── convocatorias_full.json       # Convocatorias finales enriquecidas con análisis semántico y embeddings
+├── requirements.txt                  # Dependencias del módulo actualizadas (playwright, bdns-fetch, google-generativeai, sentence-transformers)
 └── README.md                         # Esta documentación
 ```
 
@@ -96,13 +98,14 @@ PYTHONPATH=. python src/fetch_raw.py
 ```
 Genera o actualiza el archivo `data/lista_convocatorias_raw.json` y actualiza la fecha en `data/seguimiento_procesos.json`.
 
-#### Fase B: Análisis Semántico y Clasificación con Gemini
-Descarga los PDFs de las convocatorias crudas pendientes de procesar, realiza el análisis semántico detallado de requisitos (colectivos, edad, nivel de administración, plazos, etc.) con Gemini, y genera el archivo consolidado enriquecido:
+#### Fase B: Análisis Semántico, Clasificación y Vectorización Atómica con Gemini
+Descarga los PDFs de las convocatorias crudas pendientes de procesar, realiza el análisis semántico detallado de requisitos (colectivos, edad, nivel de administración, plazos, etc.) con Gemini, compila el texto estructurado en español y genera de forma local sus vectores de embeddings (768 dims) antes de almacenarlos. Todo se consolida y guarda de forma atómica en `data/convocatorias_full.json`:
 ```bash
 PYTHONPATH=. python src/analyze_gemini.py
 ```
 
-* **Resiliencia de Checkpoint:** Su ejecución lee y actualiza el contador en `data/seguimiento_procesos.json`. Si se interrumpe el proceso, se reanudará exactamente desde donde se detuvo.
+* **Vectorización Local Atómica:** Utiliza de forma local el modelo `intfloat/multilingual-e5-base` para codificar semánticamente toda la convocatoria, previniendo estados inconsistentes de almacenamiento (guardado de metadatos sin vectores).
+* **Resiliencia de Checkpoint:** Su ejecución lee y actualiza el contador en `data/seguimiento_procesos.json`. Si se interrumpe el proceso, se reanudará exactamente desde donde se detuvo sin duplicar peticiones de Gemini ni de vectorización.
 * **Control de Cuotas y Errores de API:** Si se agota la cuota (error 429) o el servicio de Google no está disponible (error 503), el script detiene la ejecución inmediatamente y alerta por consola para evitar descargas innecesarias y pérdida de datos.
 
 ---
@@ -146,4 +149,50 @@ Cada subvención guardada en `data/ayudas.json` contiene el siguiente esquema de
 | `status`       | Estado de la convocatoria ("Abierta" o "Cerrada").     |
 | `source_type`  | Origen de los datos (Fijo: "Portal Web Oficial").      |
 | `region`       | Zona a la que aplica (Fijo: "Comunidad Valenciana").   |
+
+---
+
+## Contrato de Datos (Convocatorias Reales Enriquecidas)
+
+Cada convocatoria guardada en `data/convocatorias_full.json` contiene el siguiente esquema:
+
+### Campos Principales
+
+| Clave                | Tipo       | Descripción                                                |
+|----------------------|------------|------------------------------------------------------------|
+| `id`                 | `int`      | Identificador numérico único de la convocatoria BDNS.      |
+| `mrr`                | `bool`     | Indicador de Mecanismo de Recuperación y Resiliencia.       |
+| `numeroConvocatoria` | `str`      | Código oficial BDNS de la convocatoria.                    |
+| `descripcion`        | `str`      | Título/descripción principal de la convocatoria.           |
+| `descripcionLeng`    | `str/null` | Descripción en lengua cooficial (si aplica).               |
+| `fechaRecepcion`     | `str`      | Fecha de publicación (formato `YYYY-MM-DD`).               |
+| `nivel1`             | `str`      | Nivel administrativo (AUTONOMICA, LOCAL, OTROS...).        |
+| `nivel2`             | `str`      | Organismo o comunidad autónoma.                            |
+| `nivel3`             | `str/null` | Entidad concreta (Ayuntamiento, Secretaría, etc.).         |
+| `codigoInvente`      | `str/null` | Código INVENTE (si aplica).                                |
+| `deadline`           | `str`      | Fecha límite de solicitud (formato flexible).              |
+| `embedding`          | `list[float]` | Vector de 768 dimensiones (multilingual-e5-base).       |
+
+### Objeto `geographic_scope`
+
+| Clave         | Tipo  | Descripción                                         |
+|---------------|-------|-----------------------------------------------------|
+| `level`       | `str` | Nivel geográfico (autonomico, municipal, etc.).     |
+| `region_name` | `str` | Nombre de la región o municipio.                    |
+
+### Objeto `beneficiaries`
+
+| Clave                      | Tipo         | Descripción                                               |
+|----------------------------|--------------|-----------------------------------------------------------|
+| `target_groups`            | `list[str]`  | Colectivos destinatarios (estudiantes, pymes, etc.).      |
+| `employment_status`        | `list[str]`  | Situación laboral requerida (autonomo_activo, etc.).      |
+| `family_status`            | `list[str]`  | Situación familiar (familia_numerosa, etc.).              |
+| `vulnerability_status`     | `list[str]`  | Estado de vulnerabilidad (discapacidad, etc.).            |
+| `age_min`                  | `int/null`   | Edad mínima requerida.                                    |
+| `age_max`                  | `int/null`   | Edad máxima requerida.                                    |
+| `income_threshold`         | `str/null`   | Límite de ingresos (si aplica).                           |
+| `requires_residency`       | `bool/null`  | Si requiere residencia obligatoria.                       |
+| `residency_scope`          | `str/null`   | Ámbito territorial de residencia requerida.               |
+| `compatible_with_other_aids`| `bool/null` | Compatible con otras ayudas.                              |
+| `other_conditions`         | `str/null`   | Condiciones adicionales de texto libre.                   |
 

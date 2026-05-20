@@ -21,13 +21,15 @@ Este documento define las reglas estrictas de comportamiento y desarrollo para c
 ## Reglas Específicas: Fase 2 (Base de Datos)
 - **Infraestructura:** La base de datos es Elasticsearch (v8.14.0) y debe levantarse localmente mediante `docker-compose`.
 - **Seguridad:** Se debe usar `xpack.security.enabled=true` leyendo contraseñas de un `.env`, pero `xpack.security.http.ssl.enabled=false` para agilizar el MVP.
-- **Mapping y Embeddings:** El script de ingesta (Python) debe crear el índice `ayudas_sociales` y mapear los campos extraídos del Módulo 1. Es obligatorio incluir un campo `embedding` de tipo `dense_vector` (768 dimensiones, similitud `cosine`) para preparar el futuro RAG. **Importante:** La similitud `cosine` rechaza vectores de magnitud cero, por lo que el mock de embeddings en la fase MVP debe usar valores mínimos no-cero (ej. `1e-7`).
+- **Índice Principal:** El índice de producción actual es `ayudas_sociales_full`, que contiene convocatorias reales enriquecidas con Gemini y vectorizadas con `intfloat/multilingual-e5-base`. El antiguo índice `ayudas_sociales` (datos de simulación) se mantiene como referencia pero ya no es consultado por el RAG.
+- **Mapping Enriquecido:** El mapping incluye objetos anidados (`geographic_scope`, `beneficiaries`) con campos `keyword` para filtros, campos `text` con analyzer `spanish` para búsquedas full-text, y un campo `embedding` de tipo `dense_vector` (768 dimensiones, similitud `cosine`, indexado para kNN) que contiene vectores reales pre-calculados por el Módulo 1.
 - **Compatibilidad de Cliente:** Asegurar que la versión de la librería `elasticsearch` en Python está anclada (`pinned`) a la versión `8.14.x` para que coincida exactamente con la versión del servidor en Docker. Versiones mayores del cliente pueden causar cuelgues (hangs) debido a comprobaciones internas de compatibilidad de producto.
 
 ## Siguientes Pasos
-El **MVP está completado (Fases 1 a 4)**. Todos los módulos operativos (Scraper, DB, RAG Core, y Frontend) están implementados y funcionales de extremo a extremo.
+El **MVP está completado (Fases 1 a 4)** y la integración de vectorización atómica con ingesta directa ha sido implementada exitosamente. Todos los módulos operativos (Scraper + Vectorizador, DB con `ayudas_sociales_full`, RAG Core con búsqueda kNN y URLs dinámicas de la BDNS, y Frontend) están funcionando de extremo a extremo.
 
 Futuros Agentes podrán centrarse en:
-- Escalabilidad y recolección de datos masivos (quitar `use_mock=True` del scraper).
+- Escalabilidad y recolección masiva de datos (ejecución periódica del scraper real).
 - Mejoras del prompt del RAG y ajuste de la calidad de respuesta.
+- Filtros avanzados en RAG (por ámbito geográfico, colectivo destinatario, rango de edad, etc.).
 - Autenticación o despliegue en la nube.

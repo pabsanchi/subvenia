@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 BASE_DIR = Path(__file__).resolve().parent.parent
 # El usuario solicitó usar el .env ya existente (el de modulo2-db)
 ENV_PATH = BASE_DIR.parent / "modulo2-db" / ".env"
-INDEX_NAME = "ayudas_sociales"
+INDEX_NAME = "ayudas_sociales_full"
 OLLAMA_URL = "http://localhost:11434/api/generate"
 MODEL_NAME = "intfloat/multilingual-e5-base"
 
@@ -66,8 +66,8 @@ class RAGCore:
             "num_candidates": 50
         }
 
-        # Especificamos qué campos queremos que nos devuelva (Source Filtering)
-        _source = ["title", "description", "beneficiaries", "url"]
+        # Especificamos qué campos queremos que nos devuelva (Source Filtering) de convocatorias_full
+        _source = ["descripcion", "descripcionLeng", "geographic_scope", "beneficiaries", "numeroConvocatoria"]
 
         response = self.es.search(
             index=INDEX_NAME,
@@ -80,6 +80,14 @@ class RAGCore:
         for hit in hits:
             doc = hit["_source"]
             doc["_score"] = hit["_score"]
+            
+            # Generación dinámica de la URL oficial usando el número de convocatoria
+            n_conv = doc.get("numeroConvocatoria")
+            if n_conv:
+                doc["url"] = f"https://www.pap.hacienda.gob.es/bdnstrans/GE/es/convocatoria/{n_conv}"
+            else:
+                doc["url"] = "No disponible"
+                
             resultados.append(doc)
 
         logger.info(f"Se han recuperado {len(resultados)} documentos relevantes.")
@@ -91,13 +99,63 @@ class RAGCore:
         """
         logger.info("Generando respuesta con Ollama...")
 
-        # Construimos el texto del contexto
+        # Construimos el texto del contexto a partir de los campos estructurados
         contexto_texto = ""
         for i, doc in enumerate(contexto_docs, 1):
             contexto_texto += f"\n--- Documento {i} ---\n"
-            contexto_texto += f"Título: {doc.get('title', 'N/A')}\n"
-            contexto_texto += f"Descripción: {doc.get('description', 'N/A')}\n"
-            contexto_texto += f"Beneficiarios: {doc.get('beneficiaries', 'N/A')}\n"
+            contexto_texto += f"Título: {doc.get('descripcion', 'N/A')}\n"
+            
+            # Formatear la descripción alternativa o regional si está disponible
+            desc_leng = doc.get('descripcionLeng')
+            if desc_leng:
+                contexto_texto += f"Descripción Lengua Cooficial: {desc_leng}\n"
+                
+            # Formatear beneficiarios estructurados para dar la máxima precisión al LLM
+            benef = doc.get('beneficiaries', {})
+            benef_str = "N/A"
+            if isinstance(benef, dict):
+                b_parts = []
+                target = benef.get("target_groups", [])
+                if target:
+                    target_clean = [t.replace("_", " ") for t in target]
+                    b_parts.append(f"Colectivos destinatarios: {', '.join(target_clean)}")
+                    
+                emp = benef.get("employment_status", [])
+                if emp:
+                    emp_clean = [e.replace("_", " ") for e in emp]
+                    b_parts.append(f"Situación laboral: {', '.join(emp_clean)}")
+                    
+                vuln = benef.get("vulnerability_status", [])
+                if vuln:
+                    vuln_clean = [v.replace("_", " ") for v in vuln]
+                    b_parts.append(f"Vulnerabilidad: {', '.join(vuln_clean)}")
+                    
+                req_res = benef.get("requires_residency")
+                res_scope = benef.get("residency_scope")
+                if req_res:
+                    res_str = "Requiere residencia obligatoria"
+                    if res_scope:
+                        res_str += f" en {res_scope}"
+                    b_parts.append(res_str)
+                    
+                other = benef.get("other_conditions")
+                if other:
+                    b_parts.append(f"Otras condiciones: {other}")
+                    
+                if b_parts:
+                    benef_str = "; ".join(b_parts)
+            contexto_texto += f"Beneficiarios y Requisitos: {benef_str}\n"
+
+            # Formatear ámbito geográfico
+            geo = doc.get('geographic_scope', {})
+            geo_str = "N/A"
+            if isinstance(geo, dict):
+                level = geo.get("level", "")
+                region = geo.get("region_name", "")
+                if level or region:
+                    geo_str = f"{level} ({region})"
+            contexto_texto += f"Ámbito Geográfico: {geo_str}\n"
+            
             contexto_texto += f"URL: {doc.get('url', 'N/A')}\n"
 
         system_prompt = (
@@ -140,7 +198,7 @@ if __name__ == "__main__":
         print("DOCUMENTOS RECUPERADOS:")
         print("="*50)
         for d in documentos_recuperados:
-            print(f"- {d.get('title')} (Score: {d.get('_score')})")
+            print(f"- {d.get('descripcion')} (Score: {d.get('_score')})")
         
         # 2. Generar respuesta
         respuesta_final = rag.generar_respuesta(pregunta_prueba, documentos_recuperados)

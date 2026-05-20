@@ -18,37 +18,41 @@ La documentación core del proyecto está organizada en la carpeta `docs/` para 
 ## 📊 Estado del Proyecto y Módulos
 
 ### 🟢 Módulo 1: Scraper (`modules/modulo1-scraper/`)
-**Estado:** MVP Completado y Funcional + Modo Real Integrado ✅
+**Estado:** MVP Completado + Modo Real + Vectorización Atómica ✅
 
 **Capacidades Actuales:**
 - **Modo Simulación MVP:** Extractor basado en Playwright y un parser HTML desacoplado resiliente que extrae 11 campos obligatorios inmutables en `data/ayudas.json`, respaldado por 15 tests unitarios.
-- **Modo Real Integrado [NUEVO]:**
+- **Modo Real Integrado:**
   - **Extracción Raw Incremental (`fetch_raw.py`):** Lógica que descarga de forma incremental convocatorias reales desde la API REST oficial de BDNS (mediante `bdns-fetch`), previniendo duplicados por ID de manera inteligente para actualizar `data/lista_convocatorias_raw.json`.
   - **Enriquecimiento Semántico con Gemini (`analyze_gemini.py`):** Descarga temporalmente los documentos PDF asociados a cada convocatoria, procesa su contenido semántico mediante `gemini-2.5-flash-lite` bajo un esquema estructurado estricto, y consolida los resultados en `data/convocatorias_full.json`.
+  - **Vectorización Atómica Local (`vectorizer.py`) [NUEVO]:** Genera de forma local embeddings de 768 dimensiones para cada convocatoria enriquecida usando el modelo `intfloat/multilingual-e5-base`. Los vectores se inyectan de forma atómica en el mismo flujo de guardado, garantizando que ninguna convocatoria se almacene sin su vector.
   - **Resiliencia & Control de Flujo:** Registro de checkpoints (`data/seguimiento_procesos.json`) para reanudar el análisis desde donde se interrumpió, y parada inmediata ante errores de cuota agotada (429) o disponibilidad (503).
-  - **Suite de Pruebas Reales (`test_real_scraper.py`):** Suite automatizada robusta con mocks avanzados para validar la persistencia, la ingesta incremental y el control/propagación de errores de API.
+  - **Suite de Pruebas Reales (`test_real_scraper.py`):** Suite automatizada robusta con mocks avanzados para validar la persistencia, la ingesta incremental, la compilación de texto para vectorización, y el control/propagación de errores de API.
 
 ---
 
 ### 🟢 Módulo 2: Ingesta, Base de Datos y Visualización (`modules/modulo2-db/`)
-**Estado:** MVP Completado y Funcional ✅
-**Objetivo:** Consumir el archivo `ayudas.json` generado por el Módulo 1, crear embeddings text-to-vector para cada subvención y almacenarlos utilizando **Elasticsearch**. Se aprovecharán las capacidades nativas de búsqueda vectorial (kNN) de Elasticsearch para cubrir las necesidades del RAG, empleando además **Kibana** para construir los dashboards visuales de analítica.
+**Estado:** Actualizado con Ingesta Directa de Vectores Reales ✅
+**Objetivo:** Consumir las convocatorias enriquecidas y ya vectorizadas del Módulo 1, crear el índice `ayudas_sociales_full` en Elasticsearch con un mapping adaptado al esquema completo (objetos anidados `geographic_scope`, `beneficiaries`), y almacenar los embeddings pre-calculados para la búsqueda kNN nativa.
 
 **Capacidades Actuales:**
 - **Infraestructura:** Elasticsearch y Kibana (v8.14.0) dockerizados y configurados localmente con seguridad nativa (`xpack.security`). Kibana es accesible en `http://localhost:5601`.
-- **Ingesta Segura:** Script `ingest.py` que lee los datos generados por el scraper, establece conexión segura usando variables `.env` y emplea la API Bulk de Elasticsearch. **Integración verificada:** se ha ejecutado exitosamente contra el contenedor real, indexando 3 subvenciones.
-- **Mapping y RAG Ready:** Índice `ayudas_sociales` configurado con mapeos de campos específicos (`keyword`, `text` con analyzer `spanish`, `date`) y, de forma crítica, un campo `embedding` (tipo `dense_vector`, 768 dims, similitud `cosine`) preparado para la futura generación real de embeddings. **Nota técnica:** se usa `1e-7` como mock, ya que la similitud `cosine` rechaza vectores de magnitud cero (`0.0`).
-- **Testing Aislado e Integración:** Batería de pruebas unitarias (`test_db.py`) que mockea la conexión, y **pruebas de integración** (`test_integration.py`) que interactúan directamente con el contenedor real (haciendo un `SKIP` automático si Docker no está encendido). El cliente Python (`elasticsearch`) se ha fijado a la versión `8.14.x` para prevenir bloqueos de compatibilidad con el servidor.
+- **Ingesta Directa con Vectores Reales:** Script `ingest.py` que lee `data/convocatorias_full.json` (ya con embeddings de 768 dims), valida que cada documento contiene su vector, crea el índice `ayudas_sociales_full` con mapping estricto, e indexa todo usando la API Bulk. **Ya no se usan vectores mock de ceros.**
+- **Mapping Enriquecido:** El índice `ayudas_sociales_full` mapea campos `keyword` (organismos, ámbito geográfico, colectivos), campos `text` con analyzer `spanish` (descripciones y condiciones), campos `boolean` e `integer` (requisitos de residencia, rango de edad), y el vector `dense_vector` de 768 dimensiones con similitud `cosine` indexado para kNN.
+- **Testing Aislado e Integración:** Batería de pruebas unitarias (`test_db.py`) que mockea la conexión, y **pruebas de integración** (`test_integration.py`) que interactúan directamente con el contenedor real (haciendo un `SKIP` automático si Docker no está encendido).
 
-⚠️ **Siguiente Paso Crítico (Post-MVP)**
-Cuando el proyecto avance a la Fase 3 (RAG), los embeddings mock (ceros) deberán reemplazarse por vectores reales:
-1. **Modelo de Embeddings:** Integrar un modelo de tipo sentence-transformers (ej. `all-MiniLM-L6-v2` o similar de 768 dims) para generar vectores semánticos de cada subvención.
-2. **Actualización de Embeddings:** Utilizar el script `src/update_embeddings.py` que permite inyectar (vía API bulk update) los vectores reales generados, sin sobreescribir el resto de los metadatos.
-3. **Dashboards Kibana:** Configurar visualizaciones en Kibana (accesible en `http://localhost:5601`) para explorar las subvenciones indexadas.
+---
 
-### 🟢 Módulo 3: Interfaz LLM y Retrieval (RAG)
-**Estado:** MVP Completado y Funcional ✅
-**Objetivo:** Motor de Retrieval-Augmented Generation (`rag_core.py`) que recibe una pregunta del usuario, la vectoriza usando `sentence-transformers`, busca en Elasticsearch el contexto de las ayudas más relevantes mediante similitud coseno (kNN), y usa un modelo de lenguaje local (Ollama - `llama3`) para formular una respuesta fundamentada ("grounded") exclusivamente en el contexto recuperado.
+### 🟢 Módulo 3: Interfaz LLM y Retrieval (RAG) (`modules/modulo3-rag/`)
+**Estado:** Actualizado con Búsqueda Semántica en `ayudas_sociales_full` ✅
+**Objetivo:** Motor de Retrieval-Augmented Generation (`rag_core.py`) que recibe una pregunta del usuario, la vectoriza usando `sentence-transformers` (con prefijo asimétrico `query: `), busca en el índice `ayudas_sociales_full` de Elasticsearch el contexto más relevante mediante búsqueda kNN nativa, genera dinámicamente las URLs oficiales de la BDNS, y usa un modelo de lenguaje local (Ollama - `llama3`) para formular una respuesta fundamentada ("grounded") exclusivamente en el contexto recuperado.
+
+**Capacidades Actuales:**
+- **Búsqueda Semántica kNN:** Consulta directa al índice `ayudas_sociales_full` con vectores de consulta generados localmente.
+- **Generación Dinámica de URLs:** Reconstruye el enlace oficial directo de cada convocatoria en el portal de transparencia de la BDNS: `https://www.pap.hacienda.gob.es/bdnstrans/GE/es/convocatoria/{numeroConvocatoria}`.
+- **Contexto Estructurado para el LLM:** Inyecta al modelo información precisa sobre colectivos destinatarios, situación laboral, requisitos de residencia, ámbito geográfico y condiciones adicionales.
+
+---
 
 ### 🟢 Módulo 4: Frontend (Streamlit)
 **Estado:** MVP Completado y Funcional ✅

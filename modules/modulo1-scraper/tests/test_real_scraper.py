@@ -247,3 +247,36 @@ def test_completar_convocatoria_cuota_agotada(mock_client, mock_delete, mock_get
         
         # Debe haber llamado a la limpieza en el servidor
         mock_delete.assert_called_once_with("files/mock-id")
+
+
+def test_compile_text_for_embedding():
+    from src.vectorizer import compile_text_for_embedding
+    convocatoria = {
+        "descripcion": "Ayuda a la digitalización",
+        "nivel1": "LOCAL",
+        "nivel2": "MONCADA",
+        "geographic_scope": {
+            "level": "municipal",
+            "region_name": "Moncada"
+        },
+        "beneficiaries": {
+            "target_groups": ["pymes"],
+            "employment_status": ["autonomo_activo"],
+            "requires_residency": True,
+            "residency_scope": "Moncada",
+            "other_conditions": "Estar al corriente de pagos"
+        },
+        "deadline": "2026-11-17"
+    }
+    
+    text = compile_text_for_embedding(convocatoria)
+    
+    assert text.startswith("passage: ")
+    assert "Título: Ayuda a la digitalización" in text
+    assert "Organismo emisor: LOCAL, MONCADA" in text
+    assert "Ámbito geográfico: municipal (Moncada)" in text
+    assert "Fecha límite de solicitud: 2026-11-17" in text
+    assert "Colectivos destinados: pymes" in text
+    assert "Situación laboral: autonomo activo" in text
+    assert "Requiere residencia obligatoria en Moncada" in text
+    assert "Otras condiciones y requisitos: Estar al corriente de pagos" in text

@@ -28,6 +28,7 @@ modules/modulo1-scraper/data/PDFdescargados/
 
 # Scripts de ejemplo/Colab temporales
 docs/script_convocatorias/
+docs/vectorizador/
 
 # IDEs y editores
 .vscode/
