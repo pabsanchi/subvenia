@@ -18,20 +18,15 @@ La documentación core del proyecto está organizada en la carpeta `docs/` para 
 ## 📊 Estado del Proyecto y Módulos
 
 ### 🟢 Módulo 1: Scraper (`modules/modulo1-scraper/`)
-**Estado:** MVP Completado y Funcional ✅
+**Estado:** MVP Completado y Funcional + Modo Real Integrado ✅
 
 **Capacidades Actuales:**
-- **Infraestructura lista:** Orquestador basado en Playwright (Python) capaz de levantar un navegador Chromium real en modo headless.
-- **Extracción Resiliente:** Parser HTML desacoplado que usa bloques `try/except` individuales para no detener la ejecución si falta un campo.
-- **Contrato de Datos Estricto:** Garantiza la generación de un JSON (`data/ayudas.json`) con 11 campos inmutables obligatorios.
-- **Testing Robusto:** 15 pruebas unitarias automatizadas (`pytest`) que mockean el navegador.
-- **Modo Simulación (Mock):** Actualmente con `use_mock=True` para inyectar HTML de ejemplo simulando la BDNS.
-
-⚠️ **Siguiente Paso Crítico (Post-MVP)**
-Cuando el proyecto necesite salir de la fase de simulación para recopilar datos reales, **EL PRIMER PASO ABSOLUTO** para el Módulo 1 será:
-1. **Análisis del DOM Real:** Navegar manualmente o con herramientas de dev a las páginas reales de ayudas (ej. portal de la Generalitat o BDNS).
-2. **Ajuste de Selectores:** Asegurarse de que el scraper sea capaz de extraer la información buscada modificando las constantes de `HTMLParser.SELECTOR_MAP` y `HTMLParser.ITEM_SELECTOR` (`src/scraper.py`) para que hagan "match" exacto con las tablas/etiquetas de la página oficial.
-3. Cambiar `use_mock=False` e implementar lógica de paginación si hubiera múltiples hojas de resultados.
+- **Modo Simulación MVP:** Extractor basado en Playwright y un parser HTML desacoplado resiliente que extrae 11 campos obligatorios inmutables en `data/ayudas.json`, respaldado por 15 tests unitarios.
+- **Modo Real Integrado [NUEVO]:**
+  - **Extracción Raw Incremental (`fetch_raw.py`):** Lógica que descarga de forma incremental convocatorias reales desde la API REST oficial de BDNS (mediante `bdns-fetch`), previniendo duplicados por ID de manera inteligente para actualizar `data/lista_convocatorias_raw.json`.
+  - **Enriquecimiento Semántico con Gemini (`analyze_gemini.py`):** Descarga temporalmente los documentos PDF asociados a cada convocatoria, procesa su contenido semántico mediante `gemini-2.5-flash-lite` bajo un esquema estructurado estricto, y consolida los resultados en `data/convocatorias_full.json`.
+  - **Resiliencia & Control de Flujo:** Registro de checkpoints (`data/seguimiento_procesos.json`) para reanudar el análisis desde donde se interrumpió, y parada inmediata ante errores de cuota agotada (429) o disponibilidad (503).
+  - **Suite de Pruebas Reales (`test_real_scraper.py`):** Suite automatizada robusta con mocks avanzados para validar la persistencia, la ingesta incremental y el control/propagación de errores de API.
 
 ---
 

@@ -24,6 +24,10 @@ test-results/
 # Datos generados por el scraper (no subir a git)
 modules/*/data/*.json
 modules/*/data/
+modules/modulo1-scraper/data/PDFdescargados/
+
+# Scripts de ejemplo/Colab temporales
+docs/script_convocatorias/
 
 # IDEs y editores
 .vscode/

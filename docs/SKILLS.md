@@ -11,17 +11,42 @@ source /home/dev/projects/subvenia/venv/bin/activate
 ## Módulo 1: Scraper
 
 ### Ejecutar Pruebas (Tests)
-Los tests validan la persistencia JSON, el parseo de HTML y el cumplimiento estricto del Contrato de Datos. Se ejecutan sin necesidad de lanzar un navegador real (gracias al mock):
+
+> [!IMPORTANT]
+> Para evitar errores de tipo `ModuleNotFoundError` en entornos Linux, ejecuta siempre `pytest` invocando al intérprete de Python del entorno virtual (`python -m pytest` o usando la ruta absoluta).
+
+1. **Pruebas de Simulación MVP:** Validan la persistencia JSON, parseo de HTML y el Contrato de Datos:
 ```bash
 cd modules/modulo1-scraper
-PYTHONPATH=. pytest tests/ -v
+python -m pytest tests/test_scraper.py -v
 ```
 
-### Ejecutar el Scraper (Modo Mock)
+2. **Pruebas del Scraper Real y Gemini:** Validan la lógica de recogida incremental, enriquecimiento con Gemini, limpieza local de PDFs temporales y propagación de errores de cuota/API:
+```bash
+cd modules/modulo1-scraper
+python -m pytest tests/test_real_scraper.py -v
+```
+*(De forma explícita: `/home/dev/projects/subvenia/venv/bin/python -m pytest tests/test_real_scraper.py -v`)*.
+
+### Ejecutar el Scraper (Modo Simulación)
 Genera el archivo `data/ayudas.json` usando el HTML simulado de la BDNS.
 ```bash
 cd modules/modulo1-scraper
 PYTHONPATH=. python src/scraper.py
+```
+
+### Ejecutar el Scraper (Modo Real)
+
+1. **Fase A: Extracción Incremental Raw** (descarga y guarda convocatorias raw desde la API de BDNS sin duplicados):
+```bash
+cd modules/modulo1-scraper
+PYTHONPATH=. python src/fetch_raw.py
+```
+
+2. **Fase B: Análisis y Enriquecimiento Semántico** (descarga de PDFs y categorización estructurada con Gemini, con checkpoints resilientes):
+```bash
+cd modules/modulo1-scraper
+PYTHONPATH=. python src/analyze_gemini.py
 ```
 
 ### Instalar/Actualizar Dependencias de Playwright en Linux
