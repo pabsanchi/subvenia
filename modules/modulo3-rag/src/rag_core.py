@@ -6,7 +6,7 @@ from typing import List, Dict, Any
 
 import requests
 from dotenv import load_dotenv
-from elasticsearch import Elasticsearch
+from pymongo import MongoClient
 from sentence_transformers import SentenceTransformer
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -16,7 +16,8 @@ logger = logging.getLogger(__name__)
 BASE_DIR = Path(__file__).resolve().parent.parent
 # El usuario solicitó usar el .env ya existente (el de modulo2-db)
 ENV_PATH = BASE_DIR.parent / "modulo2-db" / ".env"
-INDEX_NAME = "ayudas_sociales_full"
+DB_NAME = "subvenia"
+COLLECTION_NAME = "convocatorias"
 OLLAMA_URL = "http://localhost:11434/api/generate"
 MODEL_NAME = "intfloat/multilingual-e5-base"
 
@@ -38,20 +39,17 @@ class RAGCore:
             logger.warning(f"No se encontró el archivo .env en {ENV_PATH}. Intentando variables del sistema.")
         load_dotenv(ENV_PATH)
         
-        elastic_password = os.getenv("ELASTIC_PASSWORD")
-        if not elastic_password:
-            raise ValueError("ELASTIC_PASSWORD no encontrada en el entorno.")
+        mongo_uri = os.getenv("MONGO_URI")
+        if not mongo_uri:
+            raise ValueError("MONGO_URI no encontrada en el entorno.")
 
-        # 2. Conectar a Elasticsearch
-        self.es = Elasticsearch(
-            "http://localhost:9200",
-            basic_auth=("elastic", elastic_password)
-        )
-        # Validar conexión
-        if self.es.ping():
-            logger.info("Conexión a Elasticsearch exitosa.")
-        else:
-            logger.error("No se pudo conectar a Elasticsearch.")
+        # 2. Conectar a MongoDB
+        self.client = MongoClient(mongo_uri)
+        try:
+            self.client.admin.command('ping')
+            logger.info("Conexión a MongoDB Atlas exitosa.")
+        except Exception as e:
+            logger.error(f"No se pudo conectar a MongoDB: {e}")
 
         # 3. Cargar Modelo de Embeddings
         logger.info(f"Cargando modelo de embeddings: {MODEL_NAME}...")
@@ -75,45 +73,56 @@ class RAGCore:
         texto_query = f"query: {pregunta}"
         vector_query = self.encoder.encode(texto_query).tolist()
 
-        knn_query = {
-            "field": "embedding",
-            "query_vector": vector_query,
-            "k": max_results,
-            "num_candidates": 100
-        }
+        pipeline = [
+            {
+                "$vectorSearch": {
+                    "index": "vector_index",
+                    "path": "embedding",
+                    "queryVector": vector_query,
+                    "numCandidates": 100,
+                    "limit": max_results
+                }
+            },
+            {
+                "$project": {
+                    "_id": 0,
+                    "descripcion": 1,
+                    "descripcionLeng": 1,
+                    "geographic_scope": 1,
+                    "beneficiaries": 1,
+                    "numeroConvocatoria": 1,
+                    "deadline": 1,
+                    "score": {"$meta": "vectorSearchScore"}
+                }
+            }
+        ]
 
-        # Especificamos qué campos queremos que nos devuelva (Source Filtering) de convocatorias_full
-        _source = ["descripcion", "descripcionLeng", "geographic_scope", "beneficiaries", "numeroConvocatoria", "deadline"]
-
-        response = self.es.search(
-            index=INDEX_NAME,
-            knn=knn_query,
-            _source=_source
-        )
-
+        db = self.client[DB_NAME]
+        collection = db[COLLECTION_NAME]
+        
         resultados = []
-        hits = response.get("hits", {}).get("hits", [])
-        for hit in hits:
-            score = hit["_score"]
-            # Filtrar por umbral de similitud: solo documentos realmente relevantes
-            if score < min_score:
-                logger.debug(f"Documento descartado por baja similitud ({score:.4f} < {min_score}): {hit['_source'].get('descripcion', 'N/A')[:60]}")
-                continue
+        try:
+            cursor = collection.aggregate(pipeline)
+            for doc in cursor:
+                score = doc.get("score", 0)
+                # Filtrar por umbral de similitud
+                if score < min_score:
+                    logger.debug(f"Documento descartado por baja similitud ({score:.4f} < {min_score})")
+                    continue
+                    
+                doc["_score"] = score
                 
-            doc = hit["_source"]
-            doc["_score"] = score
-            
-            # Referencia de búsqueda: el portal BDNS no soporta deep links directos.
-            # Mostramos el nº de convocatoria como referencia para buscar en el portal.
-            n_conv = doc.get("numeroConvocatoria")
-            if n_conv:
-                doc["referencia_busqueda"] = f"Convocatoria BDNS nº {n_conv}"
-                doc["portal_url"] = BDNS_SEARCH_URL
-            else:
-                doc["referencia_busqueda"] = "Número de convocatoria no disponible"
-                doc["portal_url"] = BDNS_SEARCH_URL
-                
-            resultados.append(doc)
+                n_conv = doc.get("numeroConvocatoria")
+                if n_conv:
+                    doc["referencia_busqueda"] = f"Convocatoria BDNS nº {n_conv}"
+                    doc["portal_url"] = BDNS_SEARCH_URL
+                else:
+                    doc["referencia_busqueda"] = "Número de convocatoria no disponible"
+                    doc["portal_url"] = BDNS_SEARCH_URL
+                    
+                resultados.append(doc)
+        except Exception as e:
+            logger.error(f"Error durante $vectorSearch: {e}")
 
         logger.info(f"Se han recuperado {len(resultados)} documentos por encima del umbral de similitud ({min_score}).")
         if not resultados:
@@ -147,25 +156,25 @@ class RAGCore:
             benef_str = "N/A"
             if isinstance(benef, dict):
                 b_parts = []
-                target = benef.get("target_groups", [])
-                if target:
-                    target_clean = [t.replace("_", " ") for t in target]
-                    b_parts.append(f"Colectivos destinatarios: {', '.join(target_clean)}")
+                fam = benef.get("situacion_familiar", {})
+                fam_labels = [k for k, v in fam.items() if v]
+                if fam_labels:
+                    b_parts.append(f"Situación familiar: {', '.join(fam_labels).replace('_', ' ')}")
                     
-                emp = benef.get("employment_status", [])
-                if emp:
-                    emp_clean = [e.replace("_", " ") for e in emp]
-                    b_parts.append(f"Situación laboral: {', '.join(emp_clean)}")
+                lab = benef.get("situacion_laboral", {})
+                lab_labels = [k for k, v in lab.items() if v]
+                if lab_labels:
+                    b_parts.append(f"Situación laboral: {', '.join(lab_labels).replace('_', ' ')}")
 
-                fam = benef.get("family_status", [])
-                if fam:
-                    fam_clean = [f.replace("_", " ") for f in fam]
-                    b_parts.append(f"Situación familiar: {', '.join(fam_clean)}")
+                vul = benef.get("vulnerabilidad", {})
+                vul_labels = [k for k, v in vul.items() if v]
+                if vul_labels:
+                    b_parts.append(f"Vulnerabilidad: {', '.join(vul_labels).replace('_', ' ')}")
                     
-                vuln = benef.get("vulnerability_status", [])
-                if vuln:
-                    vuln_clean = [v.replace("_", " ") for v in vuln]
-                    b_parts.append(f"Vulnerabilidad: {', '.join(vuln_clean)}")
+                col = benef.get("colectivos_generales", {})
+                col_labels = [k for k, v in col.items() if v]
+                if col_labels:
+                    b_parts.append(f"Colectivos: {', '.join(col_labels).replace('_', ' ')}")
 
                 age_min = benef.get("age_min")
                 age_max = benef.get("age_max")

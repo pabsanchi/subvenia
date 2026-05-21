@@ -75,82 +75,38 @@ class GeographicScope(typing.TypedDict):
     region_name: Optional[str]
 
 
+class SituacionFamiliar(typing.TypedDict):
+    familia_numerosa: bool
+    familia_monoparental_o_soltero: bool
+    familia_acogedora: bool
+    familia_con_dependientes: bool
+
+class SituacionLaboral(typing.TypedDict):
+    empleado: bool
+    desempleado: bool
+    autonomo_o_emprendedor: bool
+    jubilado_o_pensionista: bool
+    empleado_hogar: bool
+
+class Vulnerabilidad(typing.TypedDict):
+    riesgo_exclusion_pobreza: bool
+    discapacidad_o_dependencia: bool
+    victima_violencia_genero: bool
+    victima_terrorismo: bool
+
+class ColectivosGenerales(typing.TypedDict):
+    menores: bool
+    jovenes: bool
+    personas_mayores: bool
+    estudiantes_o_investigadores: bool
+    pymes_o_cooperativas: bool
+    sector_primario_agri_ganadero: bool
+
 class BeneficiariesData(typing.TypedDict):
-    # Colectivos principales
-    target_groups: list[
-        Literal[
-            "ciudadania_general",
-            # Edad
-            "menores",
-            "jovenes",
-            "adultos",
-            "personas_mayores",
-            # Familia
-            "familias",
-            "familias_con_menores",
-            # Vulnerabilidad
-            "personas_con_discapacidad",
-            "personas_dependientes",
-            "personas_sin_hogar",
-            "victimas_violencia_genero",
-            "inmigrantes",
-            "refugiados",
-            # Educación
-            "estudiantes",
-            "estudiantes_universitarios",
-            "investigadores",
-            # Actividad económica
-            "autonomos",
-            "emprendedores",
-            "pymes",
-            "cooperativas",
-            "entidades_sin_animo_lucro",
-            # Sector primario
-            "agricultores",
-            "ganaderos",
-        ]
-    ]
-
-    # Situación laboral
-    employment_status: list[
-        Literal[
-            "empleado",
-            "desempleado",
-            "desempleado_larga_duracion",
-            "busqueda_primer_empleo",
-            "erte",
-            "autonomo_activo",
-            "nuevo_autonomo",
-            "jubilado",
-            "pensionista",
-            "trabajador_publico",
-            "empleado_hogar",
-        ]
-    ]
-
-    # Situación familiar
-    family_status: list[
-        Literal[
-            "familia_numerosa",
-            "familia_monoparental",
-            "padre_o_madre_soltero",
-            "familia_acogedora",
-            "familia_con_dependientes",
-        ]
-    ]
-
-    # Vulnerabilidad / exclusión
-    vulnerability_status: list[
-        Literal[
-            "riesgo_exclusion_social",
-            "vulnerabilidad_economica",
-            "discapacidad",
-            "dependencia",
-            "desahucio",
-            "pobreza_energetica",
-            "victima_terrorismo",
-        ]
-    ]
+    situacion_familiar: SituacionFamiliar
+    situacion_laboral: SituacionLaboral
+    vulnerabilidad: Vulnerabilidad
+    colectivos_generales: ColectivosGenerales
 
     # Restricciones de edad
     age_min: Optional[int]
@@ -438,12 +394,13 @@ def extraer_datos_convocatoria(ruta_pdf):
         Eres un experto legal analizando convocatorias de ayudas estatales.
         Lee este documento y extrae la información requerida siguiendo estrictamente el esquema JSON proporcionado.
 
-        INSTRUCCIONES CRÍTICAS DE CLASIFICACIÓN:
-        1. MULTI-ETIQUETA: En los campos que son listas (target_groups, employment_status, family_status, vulnerability_status), puedes y DEBES añadir múltiples etiquetas si la ayuda aplica a varios perfiles. No te limites a una si el documento menciona varias.
-        2. BENEFICIARIOS: Identifica con precisión los colectivos, situación laboral y vulnerabilidad basándote en los Enums permitidos.
-        3. GEOGRAFÍA: Determina el nivel (autonómico, provincial, municipal) y especifica el nombre de la región o pueblo si es posible.
-        4. FECHA LÍMITE: Extrae la fecha final de solicitud. Si no es clara, usa "desconocido".
-        5. TIPO Y ESTADO: Clasifica el tipo de ayuda (beca, subvención, etc.) y su estado actual.
+        INSTRUCCIONES CRÍTICAS DE CLASIFICACIÓN (OPTIMIZADO PARA BÚSQUEDA SEMÁNTICA):
+        1. MULTI-ETIQUETA OBLIGATORIA: En los diccionarios de beneficiarios (situacion_familiar, situacion_laboral, vulnerabilidad, colectivos_generales), debes rellenar CADA CAMPO con un valor booleano. Usa True solo si la ayuda va dirigida explícitamente a ese colectivo. Usa False si la categoría no es relevante o no aplica para solicitar la ayuda.
+        2. BENEFICIARIOS: Analiza el texto para detectar múltiples colectivos. No te limites a uno.
+        3. GEOGRAFÍA: Determina el nivel (autonómico, provincial, municipal) y especifica el nombre de la región o municipio de forma clara.
+        4. FECHA LÍMITE: Extrae la fecha final de solicitud. Utiliza solo fechas específicas (ej. "31 de Diciembre de 2026"). Si no es clara o es indefinida, usa "desconocido".
+        5. LENGUAJE CIUDADANO Y CONCISO: Las descripciones deben ser claras, concisas (máximo 150 caracteres) y utilizar el vocabulario coloquial que usaría un ciudadano al buscar la ayuda en internet (ej. usar "ayuda para pagar el alquiler" en lugar de "subvención de concurrencia competitiva para el arrendamiento"). Esto es CRUCIAL para relacionar la ayuda con las peticiones de los usuarios.
+        6. TIPO Y ESTADO: Clasifica el tipo de ayuda (beca, subvención, premio, etc.).
 
         IMPORTANTE: Responde exclusivamente en formato JSON. Todo el texto descriptivo debe estar en español.
         """

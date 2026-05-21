@@ -184,10 +184,10 @@ Cada convocatoria guardada en `data/convocatorias_full.json` contiene el siguien
 
 | Clave                      | Tipo         | Descripción                                               |
 |----------------------------|--------------|-----------------------------------------------------------|
-| `target_groups`            | `list[str]`  | Colectivos destinatarios (estudiantes, pymes, etc.).      |
-| `employment_status`        | `list[str]`  | Situación laboral requerida (autonomo_activo, etc.).      |
-| `family_status`            | `list[str]`  | Situación familiar (familia_numerosa, etc.).              |
-| `vulnerability_status`     | `list[str]`  | Estado de vulnerabilidad (discapacidad, etc.).            |
+| `situacion_familiar`       | `dict[bool]` | Sub-diccionario de booleanos (familia numerosa, etc.).    |
+| `situacion_laboral`        | `dict[bool]` | Sub-diccionario de booleanos (empleado, desempleado...).  |
+| `vulnerabilidad`           | `dict[bool]` | Sub-diccionario de booleanos (discapacidad, violencia...).|
+| `colectivos_generales`     | `dict[bool]` | Sub-diccionario de booleanos (menores, jóvenes, pymes...).|
 | `age_min`                  | `int/null`   | Edad mínima requerida.                                    |
 | `age_max`                  | `int/null`   | Edad máxima requerida.                                    |
 | `income_threshold`         | `str/null`   | Límite de ingresos (si aplica).                           |
