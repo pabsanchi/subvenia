@@ -11,17 +11,42 @@ source /home/dev/projects/subvenia/venv/bin/activate
 ## Módulo 1: Scraper
 
 ### Ejecutar Pruebas (Tests)
-Los tests validan la persistencia JSON, el parseo de HTML y el cumplimiento estricto del Contrato de Datos. Se ejecutan sin necesidad de lanzar un navegador real (gracias al mock):
+
+> [!IMPORTANT]
+> Para evitar errores de tipo `ModuleNotFoundError` en entornos Linux, ejecuta siempre `pytest` invocando al intérprete de Python del entorno virtual (`python -m pytest` o usando la ruta absoluta).
+
+1. **Pruebas de Simulación MVP:** Validan la persistencia JSON, parseo de HTML y el Contrato de Datos:
 ```bash
 cd modules/modulo1-scraper
-PYTHONPATH=. pytest tests/ -v
+python -m pytest tests/test_scraper.py -v
 ```
 
-### Ejecutar el Scraper (Modo Mock)
+2. **Pruebas del Scraper Real y Gemini:** Validan la lógica de recogida incremental, enriquecimiento con Gemini, limpieza local de PDFs temporales y propagación de errores de cuota/API:
+```bash
+cd modules/modulo1-scraper
+python -m pytest tests/test_real_scraper.py -v
+```
+*(De forma explícita: `/home/dev/projects/subvenia/venv/bin/python -m pytest tests/test_real_scraper.py -v`)*.
+
+### Ejecutar el Scraper (Modo Simulación)
 Genera el archivo `data/ayudas.json` usando el HTML simulado de la BDNS.
 ```bash
 cd modules/modulo1-scraper
 PYTHONPATH=. python src/scraper.py
+```
+
+### Ejecutar el Scraper (Modo Real)
+
+1. **Fase A: Extracción Incremental Raw** (descarga y guarda convocatorias raw desde la API de BDNS sin duplicados):
+```bash
+cd modules/modulo1-scraper
+PYTHONPATH=. python src/fetch_raw.py
+```
+
+2. **Fase B: Análisis, Enriquecimiento Semántico y Vectorización Atómica** (descarga de PDFs, categorización estructurada con Gemini, y vectorización local con `intfloat/multilingual-e5-base`, con checkpoints resilientes):
+```bash
+cd modules/modulo1-scraper
+PYTHONPATH=. python src/analyze_gemini.py
 ```
 
 ### Instalar/Actualizar Dependencias de Playwright en Linux
@@ -63,7 +88,7 @@ PYTHONPATH=. pytest tests/test_integration.py -v
 ```
 
 ### Ejecutar la Ingesta
-El script leerá el `ayudas.json` del Módulo 1 y lo inyectará en Elasticsearch. **Los contenedores deben estar levantados antes de ejecutar esto:**
+El script leerá `convocatorias_full.json` del Módulo 1 (ya con vectores reales de 768 dims) y lo inyectará en el índice `ayudas_sociales_full` de Elasticsearch. **Los contenedores deben estar levantados antes de ejecutar esto:**
 ```bash
 cd modules/modulo2-db
 PYTHONPATH=. python src/ingest.py
@@ -71,14 +96,14 @@ PYTHONPATH=. python src/ingest.py
 
 ## Módulo 3: Motor RAG (Retrieval-Augmented Generation)
 
-Este módulo conecta Elasticsearch y Ollama para generar respuestas contextuales.
+Este módulo conecta Elasticsearch (índice `ayudas_sociales_full`) y Ollama para generar respuestas contextuales con URLs oficiales de la BDNS.
 
 ### Requisitos Previos
-1. Contenedores de Elasticsearch levantados y con los datos vectorizados indexados.
+1. Contenedores de Elasticsearch levantados y con los datos vectorizados indexados en el índice `ayudas_sociales_full`.
 2. Servidor local de Ollama corriendo en el puerto `11434` con el modelo `llama3` descargado (`ollama run llama3`).
 
 ### Ejecutar el Motor RAG (Prueba)
-Ejecutará una pregunta de prueba hardcodeada para validar la conexión entre ES y Ollama. Nota: la primera ejecución descargará los pesos del modelo de embeddings (aprox. 1.1GB).
+Ejecutará una pregunta de prueba hardcodeada para validar la búsqueda semántica kNN en `ayudas_sociales_full` y la generación de respuesta con Ollama. Nota: la primera ejecución descargará los pesos del modelo de embeddings `intfloat/multilingual-e5-base` (aprox. 1.1GB).
 ```bash
 cd modules/modulo3-rag
 PYTHONPATH=. python src/rag_core.py

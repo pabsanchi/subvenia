@@ -5,21 +5,23 @@ Este módulo implementa la capa de persistencia y búsqueda del proyecto SubvenI
 ## Arquitectura
 
 - **`docker-compose.yaml` (raíz del proyecto):** Define los contenedores de Elasticsearch y Kibana con seguridad habilitada (`xpack.security`).
-- **`src/ingest.py`:** Script de ingesta que lee los datos del Módulo 1, crea el índice con un mapping estricto y realiza la carga masiva usando la API bulk.
-- **`.env`:** Archivo de secretos locales (no se sube a git) con la contraseña de Elasticsearch.
+- **`src/ingest.py`:** Script de ingesta que lee las convocatorias enriquecidas y ya vectorizadas del Módulo 1, crea el índice con un mapping estricto adaptado al esquema completo y realiza la carga masiva usando la API bulk.
+- **`src/update_embeddings.py`:** *(Legacy/Obsoleto)* Script de actualización parcial de embeddings para el antiguo índice `ayudas_sociales`. Conservado como referencia histórica. Ya no es necesario porque los vectores se generan atómicamente en el Módulo 1.
+- **`.env`:** Archivo de secretos locales (no se sube a git) con la contraseña de Elasticsearch y la API Key de Gemini.
 
 ## Estructura
 ```
 modulo2-db/
 ├── src/
 │   ├── __init__.py
-│   └── ingest.py         # Script de ingesta y creación de índice
+│   ├── ingest.py              # Script de ingesta al índice ayudas_sociales_full
+│   └── update_embeddings.py   # (Legacy) Actualización parcial de embeddings
 ├── tests/
 │   ├── __init__.py
-│   └── test_db.py        # Tests unitarios con mocks de Elasticsearch
-├── .env                  # Credenciales locales (excluido de git)
-├── requirements.txt      # Dependencias del módulo
-└── README.md             # Esta documentación
+│   └── test_db.py             # Tests unitarios con mocks de Elasticsearch
+├── .env                       # Credenciales locales (excluido de git)
+├── requirements.txt           # Dependencias del módulo
+└── README.md                  # Esta documentación
 ```
 
 ## Requisitos y Configuración
@@ -46,59 +48,86 @@ Esto levantará:
 
 ## Ejecución de la Ingesta
 
-Con los contenedores levantados, ejecutar:
+Con los contenedores levantados, ejecutar desde la raíz del proyecto:
 ```bash
+PYTHONPATH=. python modules/modulo2-db/src/ingest.py
+```
+O bien desde el directorio del módulo:
+```bash
+cd modules/modulo2-db
 PYTHONPATH=. python src/ingest.py
 ```
+
 El script:
 1. Lee las credenciales del `.env`.
-2. Crea el índice `ayudas_sociales` con el mapping definido (si no existe).
-3. Lee el archivo `modules/modulo1-scraper/data/ayudas.json`.
-4. Inyecta un embedding mock (768 ceros) a cada documento.
+2. Crea el índice `ayudas_sociales_full` con el mapping adaptado al esquema enriquecido (si no existe).
+3. Lee el archivo `modules/modulo1-scraper/data/convocatorias_full.json` (convocatorias ya vectorizadas por el Módulo 1).
+4. Valida que cada documento contiene el campo `embedding` pre-calculado. Si algún documento carece de vector, se omite con un warning.
 5. Indexa todo usando la API bulk.
 
-## Actualización de Embeddings
-
-Una vez que los documentos ya están en Elasticsearch y tienes un archivo JSON con los vectores reales generados (por ejemplo, desde el Módulo de Vectorización), puedes actualizar únicamente el campo de los embeddings sin sobreescribir el resto de los metadatos usando:
-```bash
-PYTHONPATH=. python src/update_embeddings.py --file ../modulo1-scraper/data/ayudas_con_vectores.json
-```
-
-En un futuro se implementará la forma de subir lo JSON directamente con los vectores directamente.
-
-**Parámetros:**
-- `--file`: *(Obligatorio)* Ruta relativa o absoluta al archivo JSON que contiene los documentos con los campos del vector (`embedding` o `float_vector`) y el identificador (`id` o `source_id`).
-
-El script usará la operación `update` de la API bulk para inyectar los nuevos vectores de forma eficiente en los registros existentes.
+> [!IMPORTANT]
+> Los embeddings ya no son mocks de ceros. El Módulo 1 genera vectores reales de 768 dimensiones usando el modelo `intfloat/multilingual-e5-base` de forma atómica durante el enriquecimiento con Gemini. El script `update_embeddings.py` ya **no es necesario** en el flujo actual.
 
 ## Ejecución de Pruebas
 
 ### Pruebas Unitarias (Mock)
 Los tests unitarios se ejecutan sin necesidad de tener los contenedores levantados:
 ```bash
+cd modules/modulo2-db
 PYTHONPATH=. pytest tests/test_db.py -v
 ```
 
 ### Pruebas de Integración (Real)
 Las pruebas de integración interactúan con el contenedor real de Elasticsearch. Si el contenedor no está disponible, las pruebas se saltarán automáticamente (`SKIP`) para no romper el flujo:
 ```bash
+cd modules/modulo2-db
 PYTHONPATH=. pytest tests/test_integration.py -v
 ```
 *(También puedes ejecutar `pytest tests/ -v` para lanzar ambas suites).*
 
-## Mapping del Índice `ayudas_sociales`
+## Mapping del Índice `ayudas_sociales_full`
 
-| Campo           | Tipo           | Detalles                                    |
-|-----------------|----------------|---------------------------------------------|
-| `source_id`     | `keyword`      | Filtros exactos por ID de la ayuda          |
-| `issuer`        | `keyword`      | Filtros exactos por órgano convocante       |
-| `status`        | `keyword`      | "Abierta" o "Cerrada"                       |
-| `url`           | `keyword`      | Enlace absoluto a la fuente oficial         |
-| `source_type`   | `keyword`      | Fijo: "Portal Web Oficial"                  |
-| `region`        | `keyword`      | Fijo: "Comunidad Valenciana"                |
-| `title`         | `text`         | Analyzer `spanish` para búsquedas full-text |
-| `description`   | `text`         | Analyzer `spanish` para búsquedas full-text |
-| `beneficiaries` | `text`         | Analyzer `spanish` para búsquedas full-text |
-| `start_date`    | `date`         | Fecha de inicio de solicitudes              |
-| `end_date`      | `date`         | Fecha límite de solicitudes                 |
-| `embedding`     | `dense_vector` | 768 dims, cosine, indexado (kNN ready)      |
+El índice utiliza un mapping estricto adaptado al esquema de convocatorias completas enriquecidas:
+
+### Campos Principales
+
+| Campo                | Tipo           | Detalles                                                |
+|----------------------|----------------|---------------------------------------------------------|
+| `id`                 | `integer`      | Identificador numérico único de la convocatoria         |
+| `mrr`                | `boolean`      | Indicador de Mecanismo de Recuperación y Resiliencia     |
+| `numeroConvocatoria` | `keyword`      | Código oficial BDNS de la convocatoria                  |
+| `descripcion`        | `text`         | Analyzer `spanish` para búsquedas full-text             |
+| `descripcionLeng`    | `text`         | Analyzer `spanish`, descripción en lengua cooficial     |
+| `fechaRecepcion`     | `date`         | Fecha de publicación/recepción de la convocatoria       |
+| `nivel1`             | `keyword`      | Nivel administrativo (AUTONOMICA, LOCAL, OTROS...)       |
+| `nivel2`             | `keyword`      | Organismo o comunidad (COMUNITAT VALENCIANA, etc.)      |
+| `nivel3`             | `keyword`      | Entidad concreta (Ayuntamiento, Secretaría, etc.)       |
+| `codigoInvente`      | `keyword`      | Código INVENTE (si aplica)                              |
+| `deadline`           | `keyword`      | Fecha límite de solicitud (formato flexible)            |
+| `embedding`          | `dense_vector` | 768 dims, cosine, indexado (kNN ready, vectores reales) |
+
+### Objeto `geographic_scope`
+
+| Campo         | Tipo      | Detalles                                        |
+|---------------|-----------|------------------------------------------------|
+| `level`       | `keyword` | Nivel geográfico (autonomico, municipal, etc.) |
+| `region_name` | `keyword` | Nombre de la región o municipio                |
+
+### Objeto `beneficiaries`
+
+| Campo                     | Tipo      | Detalles                                                 |
+|---------------------------|-----------|----------------------------------------------------------|
+| `target_groups`           | `keyword` | Colectivos destinatarios (estudiantes, pymes, etc.)      |
+| `employment_status`       | `keyword` | Situación laboral requerida (autonomo_activo, etc.)      |
+| `family_status`           | `keyword` | Situación familiar (familia_numerosa, etc.)              |
+| `vulnerability_status`    | `keyword` | Estado de vulnerabilidad (discapacidad, etc.)            |
+| `age_min`                 | `integer` | Edad mínima requerida                                    |
+| `age_max`                 | `integer` | Edad máxima requerida                                    |
+| `income_threshold`        | `keyword` | Límite de ingresos (si aplica)                           |
+| `requires_residency`      | `boolean` | Si requiere residencia obligatoria                       |
+| `residency_scope`         | `keyword` | Ámbito territorial de residencia requerida               |
+| `compatible_with_other_aids` | `boolean` | Compatible con otras ayudas                            |
+| `other_conditions`        | `text`    | Analyzer `spanish`, condiciones adicionales de texto libre|
+
+> [!NOTE]
+> El antiguo índice `ayudas_sociales` (del MVP original) sigue existiendo en Elasticsearch con los datos de simulación. El nuevo índice `ayudas_sociales_full` es el que utiliza el RAG en producción con convocatorias reales enriquecidas y vectorizadas.

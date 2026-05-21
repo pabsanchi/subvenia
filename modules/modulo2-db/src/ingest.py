@@ -39,10 +39,10 @@ logger = logging.getLogger(__name__)
 # Directorio base del módulo: modules/modulo2-db
 BASE_DIR = Path(__file__).resolve().parent.parent
 ENV_PATH = BASE_DIR / ".env"
-DATA_FILE = BASE_DIR.parent / "modulo1-scraper" / "data" / "ayudas.json"
+DATA_FILE = BASE_DIR.parent / "modulo1-scraper" / "data" / "convocatorias_full.json"
 
 # Nombre del índice en Elasticsearch
-INDEX_NAME = "ayudas_sociales"
+INDEX_NAME = "ayudas_sociales_full"
 
 # Dimensiones del vector de embedding (preparado para modelos tipo
 # sentence-transformers/all-MiniLM-L6-v2 o similares de 768 dims)
@@ -78,12 +78,15 @@ def get_es_client() -> Elasticsearch:
 
 def create_index(es: Elasticsearch, index_name: str = INDEX_NAME) -> None:
     """
-    Crea el índice con el mapping definido.
+    Crea el índice con el mapping definido para el esquema enriquecido.
 
-    El mapping se ajusta al contrato de datos del Módulo 1:
-      - keyword: source_id, issuer, status, url, source_type, region
-      - text (spanish): title, description, beneficiaries
-      - date: start_date, end_date
+    El mapping se adapta exactamente a las convocatorias completas:
+      - keyword: numeroConvocatoria, nivel1, nivel2, nivel3, codigoInvente, deadline, geographic_scope.*
+      - text (spanish): descripcion, descripcionLeng, beneficiaries.other_conditions
+      - date: fechaRecepcion
+      - boolean: mrr, beneficiaries.requires_residency, beneficiaries.compatible_with_other_aids
+      - integer: id, beneficiaries.age_min, beneficiaries.age_max
+      - keyword list: beneficiaries.employment_status, beneficiaries.family_status, beneficiaries.target_groups, beneficiaries.vulnerability_status
       - dense_vector (768 dims, cosine): embedding
 
     Si el índice ya existe, no hace nada para evitar perder datos.
@@ -95,25 +98,55 @@ def create_index(es: Elasticsearch, index_name: str = INDEX_NAME) -> None:
     mapping = {
         "mappings": {
             "properties": {
-                # Campos de metadatos fijos — tipo keyword para filtros exactos
-                "source_id": {"type": "keyword"},
-                "issuer": {"type": "keyword"},
-                "status": {"type": "keyword"},
-                "url": {"type": "keyword"},
-                "source_type": {"type": "keyword"},
-                "region": {"type": "keyword"},
-
-                # Campos descriptivos — tipo text con analyzer español
-                "title": {"type": "text", "analyzer": "spanish"},
-                "description": {"type": "text", "analyzer": "spanish"},
-                "beneficiaries": {"type": "text", "analyzer": "spanish"},
-
-                # Fechas de la convocatoria
-                "start_date": {"type": "date"},
-                "end_date": {"type": "date"},
+                # Identificadores y metadatos básicos
+                "id": {"type": "integer"},
+                "mrr": {"type": "boolean"},
+                "numeroConvocatoria": {"type": "keyword"},
+                
+                # Campos descriptivos con analizador en español
+                "descripcion": {"type": "text", "analyzer": "spanish"},
+                "descripcionLeng": {"type": "text", "analyzer": "spanish"},
+                
+                # Fechas
+                "fechaRecepcion": {"type": "date"},
+                
+                # Organismos emisores
+                "nivel1": {"type": "keyword"},
+                "nivel2": {"type": "keyword"},
+                "nivel3": {"type": "keyword"},
+                "codigoInvente": {"type": "keyword"},
+                
+                # Plazos
+                "deadline": {"type": "keyword"},
+                
+                # Ámbito geográfico estructurado
+                "geographic_scope": {
+                    "type": "object",
+                    "properties": {
+                        "level": {"type": "keyword"},
+                        "region_name": {"type": "keyword"}
+                    }
+                },
+                
+                # Beneficiarios y requisitos estructurados
+                "beneficiaries": {
+                    "type": "object",
+                    "properties": {
+                        "requires_residency": {"type": "boolean"},
+                        "residency_scope": {"type": "keyword"},
+                        "age_min": {"type": "integer"},
+                        "age_max": {"type": "integer"},
+                        "income_threshold": {"type": "keyword"},
+                        "compatible_with_other_aids": {"type": "boolean"},
+                        "employment_status": {"type": "keyword"},
+                        "family_status": {"type": "keyword"},
+                        "target_groups": {"type": "keyword"},
+                        "vulnerability_status": {"type": "keyword"},
+                        "other_conditions": {"type": "text", "analyzer": "spanish"}
+                    }
+                },
 
                 # Vector de embedding para búsqueda semántica kNN (RAG)
-                # En esta fase MVP se rellena con ceros (mock)
                 "embedding": {
                     "type": "dense_vector",
                     "dims": EMBEDDING_DIMS,
@@ -133,17 +166,12 @@ def create_index(es: Elasticsearch, index_name: str = INDEX_NAME) -> None:
 
 def process_and_ingest(es: Elasticsearch, data_path: Path, index_name: str = INDEX_NAME) -> int:
     """
-    Lee el JSON del Módulo 1, inyecta embeddings mock y hace bulk insert.
-
-    Para cada documento del archivo ayudas.json:
-      1. Añade un campo 'embedding' con un array de EMBEDDING_DIMS ceros
-         flotantes (mock para esta fase MVP).
-      2. Usa el source_id como _id del documento en Elasticsearch.
-      3. Envía todo en una única operación bulk para máximo rendimiento.
+    Lee las convocatorias enriquecidas del Módulo 1 (que ya incluyen embeddings)
+    y realiza la ingesta masiva bulk en Elasticsearch.
 
     Args:
         es: Cliente de Elasticsearch conectado.
-        data_path: Ruta al archivo ayudas.json generado por el Módulo 1.
+        data_path: Ruta al archivo convocatorias_full.json.
         index_name: Nombre del índice donde se insertarán los datos.
 
     Returns:
@@ -160,22 +188,28 @@ def process_and_ingest(es: Elasticsearch, data_path: Path, index_name: str = IND
         logger.warning("El archivo JSON está vacío. No hay datos que indexar.")
         return 0
 
-    # Mock embedding: vector con valores mínimos no-cero.
-    # La similitud coseno de Elasticsearch rechaza vectores de magnitud cero,
-    # por lo que usamos un valor ínfimo (1e-7) que no afectará a los
-    # resultados de búsqueda cuando se reemplacen por embeddings reales.
-    mock_embedding = [1e-7] * EMBEDDING_DIMS
-
     actions = []
     for doc in data:
-        doc["embedding"] = mock_embedding
+        doc_id = str(doc.get("id"))
+        if not doc_id:
+            logger.warning("Documento sin 'id' encontrado. Se omite.")
+            continue
+
+        embedding = doc.get("embedding")
+        if not embedding:
+            logger.warning(f"La convocatoria {doc_id} no contiene el campo 'embedding'. Se omite.")
+            continue
 
         action = {
             "_index": index_name,
-            "_id": doc.get("source_id"),
+            "_id": doc_id,
             "_source": doc
         }
         actions.append(action)
+
+    if not actions:
+        logger.warning("No hay acciones válidas para indexar.")
+        return 0
 
     success, errors = helpers.bulk(es, actions)
     logger.info(f"Se han indexado correctamente {success} documentos.")
