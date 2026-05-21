@@ -117,10 +117,10 @@ El índice utiliza un mapping estricto adaptado al esquema de convocatorias comp
 
 | Campo                     | Tipo      | Detalles                                                 |
 |---------------------------|-----------|----------------------------------------------------------|
-| `target_groups`           | `keyword` | Colectivos destinatarios (estudiantes, pymes, etc.)      |
-| `employment_status`       | `keyword` | Situación laboral requerida (autonomo_activo, etc.)      |
-| `family_status`           | `keyword` | Situación familiar (familia_numerosa, etc.)              |
-| `vulnerability_status`    | `keyword` | Estado de vulnerabilidad (discapacidad, etc.)            |
+| `situacion_familiar`      | `object`  | Sub-diccionario de campos booleanos (familia_numerosa...)|
+| `situacion_laboral`       | `object`  | Sub-diccionario de campos booleanos (empleado, paro...)  |
+| `vulnerabilidad`          | `object`  | Sub-diccionario de campos booleanos (discapacidad...)    |
+| `colectivos_generales`    | `object`  | Sub-diccionario de campos booleanos (menores, jovenes...)|
 | `age_min`                 | `integer` | Edad mínima requerida                                    |
 | `age_max`                 | `integer` | Edad máxima requerida                                    |
 | `income_threshold`        | `keyword` | Límite de ingresos (si aplica)                           |

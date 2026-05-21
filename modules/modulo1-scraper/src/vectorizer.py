@@ -58,26 +58,33 @@ def compile_text_for_embedding(convocatoria: dict) -> str:
     if isinstance(benef, dict):
         benef_parts = []
         
-        target = benef.get("target_groups", [])
-        if target:
-            # Reemplazar guiones bajos por espacios para mejor lectura del encoder
-            target_clean = [t.replace("_", " ") for t in target]
-            benef_parts.append(f"Colectivos destinados: {', '.join(target_clean)}")
-            
-        emp = benef.get("employment_status", [])
-        if emp:
-            emp_clean = [e.replace("_", " ") for e in emp]
-            benef_parts.append(f"Situación laboral: {', '.join(emp_clean)}")
-            
-        fam = benef.get("family_status", [])
-        if fam:
-            fam_clean = [f.replace("_", " ") for f in fam]
-            benef_parts.append(f"Situación familiar: {', '.join(fam_clean)}")
-            
-        vuln = benef.get("vulnerability_status", [])
-        if vuln:
-            vuln_clean = [v.replace("_", " ") for v in vuln]
-            benef_parts.append(f"Estado de vulnerabilidad: {', '.join(vuln_clean)}")
+        # Procesar booleanos para vectorización semántica
+        fam = benef.get("situacion_familiar", {})
+        if fam.get("familia_numerosa"): benef_parts.append("Esta ayuda va dirigida a familias numerosas.")
+        if fam.get("familia_monoparental_o_soltero"): benef_parts.append("Esta ayuda va dirigida a familias monoparentales o padres/madres solteros.")
+        if fam.get("familia_acogedora"): benef_parts.append("Esta ayuda va dirigida a familias acogedoras.")
+        if fam.get("familia_con_dependientes"): benef_parts.append("Esta ayuda va dirigida a familias con personas dependientes a cargo.")
+        
+        lab = benef.get("situacion_laboral", {})
+        if lab.get("empleado"): benef_parts.append("Esta ayuda va dirigida a empleados por cuenta ajena.")
+        if lab.get("desempleado"): benef_parts.append("Esta ayuda va dirigida a personas desempleadas.")
+        if lab.get("autonomo_o_emprendedor"): benef_parts.append("Esta ayuda va dirigida a autónomos o emprendedores.")
+        if lab.get("jubilado_o_pensionista"): benef_parts.append("Esta ayuda va dirigida a jubilados o pensionistas.")
+        if lab.get("empleado_hogar"): benef_parts.append("Esta ayuda va dirigida a empleados del hogar.")
+        
+        vul = benef.get("vulnerabilidad", {})
+        if vul.get("riesgo_exclusion_pobreza"): benef_parts.append("Esta ayuda va dirigida a personas en riesgo de exclusión social o pobreza.")
+        if vul.get("discapacidad_o_dependencia"): benef_parts.append("Esta ayuda va dirigida a personas con discapacidad o dependencia.")
+        if vul.get("victima_violencia_genero"): benef_parts.append("Esta ayuda va dirigida a víctimas de violencia de género.")
+        if vul.get("victima_terrorismo"): benef_parts.append("Esta ayuda va dirigida a víctimas de terrorismo.")
+        
+        col = benef.get("colectivos_generales", {})
+        if col.get("menores"): benef_parts.append("Esta ayuda va dirigida a menores de edad.")
+        if col.get("jovenes"): benef_parts.append("Esta ayuda va dirigida a jóvenes.")
+        if col.get("personas_mayores"): benef_parts.append("Esta ayuda va dirigida a personas mayores.")
+        if col.get("estudiantes_o_investigadores"): benef_parts.append("Esta ayuda va dirigida a estudiantes o investigadores.")
+        if col.get("pymes_o_cooperativas"): benef_parts.append("Esta ayuda va dirigida a pymes o cooperativas.")
+        if col.get("sector_primario_agri_ganadero"): benef_parts.append("Esta ayuda va dirigida al sector primario, agricultores o ganaderos.")
             
         age_min = benef.get("age_min")
         age_max = benef.get("age_max")

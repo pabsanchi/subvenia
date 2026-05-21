@@ -147,25 +147,25 @@ class RAGCore:
             benef_str = "N/A"
             if isinstance(benef, dict):
                 b_parts = []
-                target = benef.get("target_groups", [])
-                if target:
-                    target_clean = [t.replace("_", " ") for t in target]
-                    b_parts.append(f"Colectivos destinatarios: {', '.join(target_clean)}")
+                fam = benef.get("situacion_familiar", {})
+                fam_labels = [k for k, v in fam.items() if v]
+                if fam_labels:
+                    b_parts.append(f"Situación familiar: {', '.join(fam_labels).replace('_', ' ')}")
                     
-                emp = benef.get("employment_status", [])
-                if emp:
-                    emp_clean = [e.replace("_", " ") for e in emp]
-                    b_parts.append(f"Situación laboral: {', '.join(emp_clean)}")
+                lab = benef.get("situacion_laboral", {})
+                lab_labels = [k for k, v in lab.items() if v]
+                if lab_labels:
+                    b_parts.append(f"Situación laboral: {', '.join(lab_labels).replace('_', ' ')}")
 
-                fam = benef.get("family_status", [])
-                if fam:
-                    fam_clean = [f.replace("_", " ") for f in fam]
-                    b_parts.append(f"Situación familiar: {', '.join(fam_clean)}")
+                vul = benef.get("vulnerabilidad", {})
+                vul_labels = [k for k, v in vul.items() if v]
+                if vul_labels:
+                    b_parts.append(f"Vulnerabilidad: {', '.join(vul_labels).replace('_', ' ')}")
                     
-                vuln = benef.get("vulnerability_status", [])
-                if vuln:
-                    vuln_clean = [v.replace("_", " ") for v in vuln]
-                    b_parts.append(f"Vulnerabilidad: {', '.join(vuln_clean)}")
+                col = benef.get("colectivos_generales", {})
+                col_labels = [k for k, v in col.items() if v]
+                if col_labels:
+                    b_parts.append(f"Colectivos: {', '.join(col_labels).replace('_', ' ')}")
 
                 age_min = benef.get("age_min")
                 age_max = benef.get("age_max")

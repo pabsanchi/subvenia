@@ -87,8 +87,7 @@ Esto garantiza que el enlace oficial siempre apunte al portal de transparencia d
 ### Contexto Estructurado para el LLM
 El contexto que se inyecta a Ollama incluye campos formateados de forma legible:
 - **Título y descripción** de la convocatoria.
-- **Colectivos destinatarios** (`target_groups`) con guiones bajos reemplazados por espacios.
-- **Situación laboral** y **vulnerabilidad** requeridas.
+- **Situación familiar, laboral, vulnerabilidad y colectivos generales**, extraídos dinámicamente de los sub-diccionarios de booleanos.
 - **Ámbito geográfico** (nivel y región).
 - **Requisitos de residencia** y otras condiciones.
 - **URL oficial** generada dinámicamente.
