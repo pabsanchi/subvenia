@@ -10,6 +10,11 @@ Este proyecto sigue una arquitectura **Monorepo** y ha migrado su capa de datos 
 
 Para arrancar el proyecto completo desde cero y actualizar las convocatorias, sigue estos pasos en orden:
 
+### Paso 0: Activar el entorno virtual
+```bash
+source venv/bin/activate
+```
+
 ### Paso 1: Recogida de Convocatorias (Scraper)
 Este script se conecta a la API oficial de la BDNS para descargar nuevas convocatorias de forma incremental (sin duplicados).
 ```bash
