@@ -18,8 +18,9 @@ from typing import Optional, Literal
 
 from dotenv import load_dotenv
 from bdns.fetch.client import BDNSClient
-from google.api_core import exceptions
-import google.generativeai as genai
+from google import genai
+from google.genai import types
+from google.genai.errors import APIError
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -55,12 +56,13 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 if not GEMINI_API_KEY:
     logger.error("❌ GEMINI_API_KEY no encontrada en las variables de entorno ni en los archivos .env.")
+    client = None
 else:
-    genai.configure(api_key=GEMINI_API_KEY)
-    logger.info("🔑 SDK de Gemini configurado correctamente.")
+    client = genai.Client(api_key=GEMINI_API_KEY)
+    logger.info("🔑 SDK de Gemini (google-genai) configurado correctamente.")
 
 # Inicialización de BDNSClient para descarga de documentos
-client = BDNSClient()
+bdns_client = BDNSClient()
 
 # ===========================================================================
 # Definición del esquema JSON estructurado para Gemini
@@ -339,26 +341,30 @@ def guardar_convocatoria_full(numero_convocatoria_str, gemini_result, vectorizer
 # Conexión y llamada a la API de Gemini
 # ===========================================================================
 
-def comprobar_estado_api(nombre_modelo='gemini-2.5-flash'):
+def comprobar_estado_api(nombre_modelo='gemini-2.5-flash-lite'):
     """Verifica si la clave API y la cuota de Gemini están operativas."""
     logger.info(f"Comprobando estado de la API de Gemini (modelo: {nombre_modelo})...")
-    if not GEMINI_API_KEY:
-        logger.error("❌ API Key no configurada.")
+    if not client:
+        logger.error("❌ Cliente de Gemini no inicializado (Falta API Key).")
         return False
     try:
-        test_model = genai.GenerativeModel(nombre_modelo)
-        response = test_model.generate_content("ping", generation_config={"max_output_tokens": 5})
+        response = client.models.generate_content(
+            model=nombre_modelo,
+            contents="ping",
+            config=types.GenerateContentConfig(max_output_tokens=5)
+        )
         if response.text:
             logger.info("✅ Conexión exitosa: La API responde correctamente.")
             return True
-    except exceptions.PermissionDenied:
-        logger.error("❌ ERROR: API Key no válida o sin permisos (Permission Denied).")
-    except exceptions.ResourceExhausted:
-        logger.error("❌ ERROR: Cuota de la API agotada (429 - Resource Exhausted).")
-    except exceptions.InvalidArgument:
-        logger.error(f"❌ ERROR: El nombre del modelo '{nombre_modelo}' no es válido.")
-    except exceptions.ServiceUnavailable:
-        logger.error("❌ ERROR: El servicio de Google Gemini no está disponible (503).")
+    except APIError as e:
+        if e.code == 403:
+            logger.error("❌ ERROR: API Key no válida o sin permisos (403).")
+        elif e.code == 429:
+            logger.error("❌ ERROR: Cuota de la API agotada (429 - Resource Exhausted).")
+        elif e.code == 503:
+            logger.error("❌ ERROR: El servicio de Google Gemini no está disponible (503).")
+        else:
+            logger.error(f"❌ ERROR de API: {e}")
     except Exception as e:
         logger.error(f"❌ ERROR INESPERADO al verificar la API: {e}")
     return False
@@ -374,18 +380,18 @@ def extraer_datos_convocatoria(ruta_pdf):
       - [2, msg_error] -> Error 429 (Cuota Agotada).
       - [3, msg_error] -> Error 503 (Servicio no disponible).
     """
-    # Usamos el modelo optimizado por defecto
-    model = genai.GenerativeModel('gemini-2.5-flash-lite')
+    if not client:
+        return [1, "Client not initialized"]
 
     pdf_file = None
     try:
         logger.info(f"Subiendo documento {ruta_pdf.name} a Gemini...")
-        pdf_file = genai.upload_file(path=ruta_pdf, display_name=f"Convocatoria {ruta_pdf.stem}")
+        pdf_file = client.files.upload(file=str(ruta_pdf), config={"display_name": f"Convocatoria {ruta_pdf.stem}"})
 
         while pdf_file.state.name == "PROCESSING":
             logger.info("Procesando PDF en el servidor de Gemini...")
             time.sleep(2)
-            pdf_file = genai.get_file(pdf_file.name)
+            pdf_file = client.files.get(name=pdf_file.name)
 
         if pdf_file.state.name == "FAILED":
             raise ValueError(f"El procesamiento del PDF falló en el servidor: {pdf_file.state.name}")
@@ -407,9 +413,10 @@ def extraer_datos_convocatoria(ruta_pdf):
         IMPORTANTE: Responde exclusivamente en formato JSON. Todo el texto descriptivo debe estar en español.
         """
 
-        response = model.generate_content(
-            [pdf_file, prompt],
-            generation_config=genai.GenerationConfig(
+        response = client.models.generate_content(
+            model='gemini-2.5-flash-lite',
+            contents=[pdf_file, prompt],
+            config=types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=GrantExtraction,
                 temperature=0.1,
@@ -418,24 +425,25 @@ def extraer_datos_convocatoria(ruta_pdf):
 
         return [0, json.loads(response.text)]
 
-    except exceptions.ResourceExhausted:
-        logger.error("⚠️ [ERROR 429] Cuota de API Gemini agotada.")
-        return [2, "Quota exhausted"]
-    except exceptions.ServiceUnavailable:
-        logger.error("⚠️ [ERROR 503] Servicio de Gemini no disponible temporalmente.")
-        return [3, "Service unavailable"]
+    except APIError as e:
+        if e.code == 429:
+            logger.error("⚠️ [ERROR 429] Cuota de API Gemini agotada.")
+            return [2, "Quota exhausted"]
+        elif e.code == 503:
+            logger.error("⚠️ [ERROR 503] Servicio de Gemini no disponible temporalmente.")
+            return [3, "Service unavailable"]
+        else:
+            logger.error(f"❌ [ERROR API] en extracción de Gemini: {e}")
+            return [1, str(e)]
     except Exception as e:
         error_msg = str(e)
-        if "429" in error_msg or "quota" in error_msg.lower():
-            logger.error(f"⚠️ [ERROR 429] Detectado por mensaje: {error_msg}")
-            return [2, error_msg]
         logger.error(f"❌ [ERROR INESPERADO] en extracción de Gemini: {error_msg}")
         return [1, error_msg]
     finally:
         # Garantizamos la limpieza del archivo en el servidor de Google
         if pdf_file:
             try:
-                genai.delete_file(pdf_file.name)
+                client.files.delete(name=pdf_file.name)
                 logger.info("Limpieza de archivo en el servidor de Gemini completada.")
             except Exception as e:
                 logger.warning(f"No se pudo eliminar el archivo del servidor: {e}")
@@ -455,7 +463,7 @@ def completar_convocatoria(nConvocatoria, vectorizer=None):
     # 1. Obtener metadatos de los documentos
     logger.info(f"Consultando documentos asociados para la convocatoria: {nConvocatoria_str}")
     try:
-        convocatoria_datos_documentos = list(client.fetch_convocatorias(numConv=nConvocatoria_str, vpd="GE"))
+        convocatoria_datos_documentos = list(bdns_client.fetch_convocatorias(numConv=nConvocatoria_str, vpd="GE"))
         if not convocatoria_datos_documentos:
             logger.warning(f"No se encontró respuesta para la convocatoria {nConvocatoria_str}")
             return [1, "Convocatoria no encontrada en BDNS"]
@@ -474,7 +482,7 @@ def completar_convocatoria(nConvocatoria, vectorizer=None):
 
     try:
         logger.info(f"Descargando PDF oficial de la BDNS (ID Documento: {id_documento})...")
-        documento_bytes = client.fetch_convocatorias_documentos(idDocumento=id_documento)
+        documento_bytes = bdns_client.fetch_convocatorias_documentos(idDocumento=id_documento)
         with open(ruta_pdf, "wb") as f:
             f.write(documento_bytes)
         logger.info(f"PDF guardado localmente de forma temporal en: {ruta_pdf.name}")
