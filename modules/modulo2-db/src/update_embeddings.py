@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.append(str(BASE_DIR))
-ENV_PATH = BASE_DIR / ".env"
+ENV_PATH = BASE_DIR.parent.parent / ".env"
 INDEX_NAME = "ayudas_sociales"
 
 

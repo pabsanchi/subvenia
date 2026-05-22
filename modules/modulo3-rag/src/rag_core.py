@@ -16,8 +16,8 @@ logger = logging.getLogger(__name__)
 # Configuraciones Base
 BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.append(str(BASE_DIR))
-# El usuario solicitó usar el .env ya existente (el de modulo2-db)
-ENV_PATH = BASE_DIR.parent / "modulo2-db" / ".env"
+# Ahora el .env está en la raíz del proyecto
+ENV_PATH = BASE_DIR.parent.parent / ".env"
 DB_NAME = "subvenia"
 COLLECTION_NAME = "convocatorias"
 OLLAMA_URL = "http://localhost:11434/api/generate"

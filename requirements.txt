@@ -1,0 +1,19 @@
+# Web Scraping y API
+bdns-fetch>=0.1.0
+google-genai>=0.1.0
+requests>=2.32.3
+
+# Base de datos y variables de entorno
+pymongo[srv]>=4.0
+python-dotenv>=1.0.1,<2.0.0
+
+# Modelos locales y embeddings (RAG)
+sentence-transformers>=2.7.0,<3.0.0
+torch==2.3.0
+
+# Frontend
+streamlit>=1.35.0
+
+# Utilidades y Testing
+typing-extensions>=4.0.0
+pytest>=7.4,<9.0

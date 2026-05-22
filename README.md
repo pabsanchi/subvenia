@@ -6,11 +6,23 @@ Este proyecto sigue una arquitectura **Monorepo** y ha migrado su capa de datos 
 
 ---
 
+## Guía de instalación: 
+
+Si es la primera vez que descargas el repositorio, simplemente ejecuta el instalador automatizado. Este script preparará el entorno virtual, instalará todas las dependencias cruzadas y creará un archivo `.env` de plantilla:
+```bash
+./install.sh
+```
+> [!IMPORTANT]
+> **Configuración Obligatoria:** Abre el archivo `.env` generado en la raíz y configura tus credenciales (`GEMINI_API_KEY` y `MONGO_URI`). Si la base de datos de MongoDB no tiene datos (no haces los Pasos 1, 2 y 3), el asistente virtual no podrá responder.
+
+
 ## 🚀 Guía Rápida de Ejecución (Paso a Paso)
 
 Para arrancar el proyecto completo desde cero y actualizar las convocatorias, sigue estos pasos en orden:
 
-### Paso 0: Activar el entorno virtual
+### Paso 0: Entorno
+
+simplemente activa el entorno:
 ```bash
 source venv/bin/activate
 ```
@@ -22,7 +34,7 @@ python modules/modulo1-scraper/src/fetch_raw.py
 ```
 
 ### Paso 2: Análisis Semántico y Vectorización (Gemini)
-Este script toma las convocatorias descargadas, baja sus PDFs oficiales, los procesa con **Gemini** para estructurar sus requisitos (forzando etiquetas de booleanos) y genera localmente el vector semántico (768 dimensiones).
+Este script toma las convocatorias descargadas, baja sus PDFs oficiales, los procesa con **Gemini** (usando el nuevo SDK `google-genai`) para estructurar sus requisitos (forzando etiquetas de booleanos) y genera localmente el vector semántico (768 dimensiones).
 ```bash
 python modules/modulo1-scraper/src/analyze_gemini.py
 ```
@@ -50,7 +62,7 @@ Hemos creado un script que automáticamente "despierta" (warmup) el modelo local
 La documentación core del proyecto está organizada en la carpeta `docs/` para no ensuciar la raíz del proyecto. **Es de obligada lectura para retomar el trabajo:**
 
 - **[docs/AGENTS.md](./docs/AGENTS.md):** Reglas estrictas de comportamiento, arquitectura y roles para los agentes IA que programen en este repositorio.
-- **[docs/SKILLS.md](./docs/SKILLS.md):** Comandos esenciales para entornos virtuales, resolución de dependencias de Playwright en Ubuntu y comandos de testing.
+- **[docs/SKILLS.md](./docs/SKILLS.md):** Comandos esenciales para entornos virtuales y comandos de testing.
 
 ---
 
@@ -59,7 +71,7 @@ La documentación core del proyecto está organizada en la carpeta `docs/` para 
 ### 🟢 Módulo 1: Scraper (`modules/modulo1-scraper/`)
 **Estado:** Completado + Extracción Estructurada con Gemini ✅
 - Se encarga de descargar las convocatorias desde la BDNS.
-- Emplea `gemini-2.5-flash-lite` para extraer los datos obligando a un modelo estricto de diccionarios de booleanos (colectivos, situación laboral, vulnerabilidad).
+- Emplea `gemini-2.5-flash-lite` (a través del SDK oficial `google-genai`) para extraer los datos obligando a un modelo estricto de diccionarios de booleanos (colectivos, situación laboral, vulnerabilidad).
 - Vectoriza los textos generados utilizando `intfloat/multilingual-e5-base`.
 
 ### 🟢 Módulo 2: Ingesta en Base de Datos (`modules/modulo2-db/`)

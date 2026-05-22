@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 # Configuración de rutas y constantes
 BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.append(str(BASE_DIR))
-ENV_PATH = BASE_DIR / ".env"
+ENV_PATH = BASE_DIR.parent.parent / ".env"
 DATA_FILE = BASE_DIR.parent / "modulo1-scraper" / "data" / "convocatorias_full.json"
 DB_NAME = "subvenia"
 COLLECTION_NAME = "convocatorias"
