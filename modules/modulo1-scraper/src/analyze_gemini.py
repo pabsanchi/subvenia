@@ -11,6 +11,7 @@ import os
 import json
 import time
 import logging
+import sys
 from pathlib import Path
 import typing_extensions as typing
 from typing import Optional, Literal
@@ -25,6 +26,7 @@ logger = logging.getLogger(__name__)
 
 # Configuración de rutas relativas
 BASE_DIR = Path(__file__).resolve().parent.parent
+sys.path.append(str(BASE_DIR))
 ROOT_DIR = BASE_DIR.parent.parent
 DATA_DIR = BASE_DIR / "data"
 DATA_DIR.mkdir(parents=True, exist_ok=True)

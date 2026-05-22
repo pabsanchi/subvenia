@@ -7,6 +7,7 @@ Uso:
 """
 
 import os
+import sys
 import json
 import logging
 import argparse
@@ -19,6 +20,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+sys.path.append(str(BASE_DIR))
 ENV_PATH = BASE_DIR / ".env"
 INDEX_NAME = "ayudas_sociales"
 

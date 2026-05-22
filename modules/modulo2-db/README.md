@@ -43,7 +43,7 @@ MONGO_URI="mongodb+srv://<usuario>:<password>@<cluster>.mongodb.net/?retryWrites
 
 Ejecutar desde la raíz del proyecto:
 ```bash
-PYTHONPATH=. python modules/modulo2-db/src/ingest.py
+python modules/modulo2-db/src/ingest.py
 ```
 
 El script:

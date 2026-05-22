@@ -18,19 +18,19 @@ source venv/bin/activate
 ### Paso 1: Recogida de Convocatorias (Scraper)
 Este script se conecta a la API oficial de la BDNS para descargar nuevas convocatorias de forma incremental (sin duplicados).
 ```bash
-PYTHONPATH=. python modules/modulo1-scraper/src/fetch_raw.py
+python modules/modulo1-scraper/src/fetch_raw.py
 ```
 
 ### Paso 2: Análisis Semántico y Vectorización (Gemini)
 Este script toma las convocatorias descargadas, baja sus PDFs oficiales, los procesa con **Gemini** para estructurar sus requisitos (forzando etiquetas de booleanos) y genera localmente el vector semántico (768 dimensiones).
 ```bash
-PYTHONPATH=. python modules/modulo1-scraper/src/analyze_gemini.py
+python modules/modulo1-scraper/src/analyze_gemini.py
 ```
 
 ### Paso 3: Subida a la Base de Datos (MongoDB Atlas)
 Una vez extraídos los datos y generados los vectores, este script los sube de forma masiva a tu clúster de MongoDB Atlas.
 ```bash
-PYTHONPATH=. python modules/modulo2-db/src/ingest.py
+python modules/modulo2-db/src/ingest.py
 ```
 *(Nota: Requiere que tengas configurado el `MONGO_URI` en tu archivo `.env` y el índice vectorial `$vectorSearch` creado en Atlas).*
 

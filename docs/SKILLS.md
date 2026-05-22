@@ -32,7 +32,7 @@ python -m pytest tests/test_real_scraper.py -v
 Genera el archivo `data/ayudas.json` usando el HTML simulado de la BDNS.
 ```bash
 cd modules/modulo1-scraper
-PYTHONPATH=. python src/scraper.py
+python src/scraper.py
 ```
 
 ### Ejecutar el Scraper (Modo Real)
@@ -40,13 +40,13 @@ PYTHONPATH=. python src/scraper.py
 1. **Fase A: Extracción Incremental Raw** (descarga y guarda convocatorias raw desde la API de BDNS sin duplicados):
 ```bash
 cd modules/modulo1-scraper
-PYTHONPATH=. python src/fetch_raw.py
+python src/fetch_raw.py
 ```
 
 2. **Fase B: Análisis, Enriquecimiento Semántico y Vectorización Atómica** (descarga de PDFs, categorización estructurada con Gemini, y vectorización local con `intfloat/multilingual-e5-base`, con checkpoints resilientes):
 ```bash
 cd modules/modulo1-scraper
-PYTHONPATH=. python src/analyze_gemini.py
+python src/analyze_gemini.py
 ```
 
 ### Instalar/Actualizar Dependencias de Playwright en Linux
@@ -78,20 +78,20 @@ El Módulo 2 cuenta con dos suites de pruebas:
 1. **Unitarias (Mock):** Validan el mapping y manejo de errores sin levantar Elasticsearch:
 ```bash
 cd modules/modulo2-db
-PYTHONPATH=. pytest tests/test_db.py -v
+pytest tests/test_db.py -v
 ```
 
 2. **Integración (Real):** Interactúan con el contenedor de Elasticsearch insertando datos en un índice temporal y verificando búsquedas reales. Si el contenedor está apagado, hacen `SKIP`.
 ```bash
 cd modules/modulo2-db
-PYTHONPATH=. pytest tests/test_integration.py -v
+pytest tests/test_integration.py -v
 ```
 
 ### Ejecutar la Ingesta
 El script leerá `convocatorias_full.json` del Módulo 1 (ya con vectores reales de 768 dims) y lo inyectará en el índice `ayudas_sociales_full` de Elasticsearch. **Los contenedores deben estar levantados antes de ejecutar esto:**
 ```bash
 cd modules/modulo2-db
-PYTHONPATH=. python src/ingest.py
+python src/ingest.py
 ```
 
 ## Módulo 3: Motor RAG (Retrieval-Augmented Generation)
@@ -106,14 +106,14 @@ Este módulo conecta Elasticsearch (índice `ayudas_sociales_full`) y Ollama par
 Ejecutará una pregunta de prueba hardcodeada para validar la búsqueda semántica kNN en `ayudas_sociales_full` y la generación de respuesta con Ollama. Nota: la primera ejecución descargará los pesos del modelo de embeddings `intfloat/multilingual-e5-base` (aprox. 1.1GB).
 ```bash
 cd modules/modulo3-rag
-PYTHONPATH=. python src/rag_core.py
+python src/rag_core.py
 ```
 
 ### Ejecutar Pruebas (Tests)
 Las pruebas usan mocks y no requieren que Elasticsearch u Ollama estén encendidos:
 ```bash
 cd modules/modulo3-rag
-PYTHONPATH=. pytest tests/ -v
+pytest tests/ -v
 ```
 
 ## Módulo 4: Frontend (Streamlit)
@@ -124,6 +124,6 @@ Este módulo proporciona la interfaz gráfica web para interactuar con el motor 
 Asegúrate de que los contenedores de Elasticsearch están levantados y Ollama está corriendo.
 ```bash
 cd modules/modulo4-frontend
-PYTHONPATH=. ../../venv/bin/streamlit run src/app.py
+../../venv/bin/streamlit run src/app.py
 ```
 La aplicación estará disponible en `http://localhost:8501`.

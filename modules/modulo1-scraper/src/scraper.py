@@ -14,6 +14,7 @@ Arquitectura:
     navegador real.
 """
 
+import sys
 import json
 import logging
 import re
@@ -21,6 +22,9 @@ from pathlib import Path
 from typing import List, Dict, Optional
 
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+sys.path.append(str(BASE_DIR))
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)

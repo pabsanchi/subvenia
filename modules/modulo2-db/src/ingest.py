@@ -9,6 +9,7 @@ Funcionalidades:
   - Ingesta masiva usando insert_many.
 """
 import os
+import sys
 import json
 import logging
 from pathlib import Path
@@ -22,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 # Configuración de rutas y constantes
 BASE_DIR = Path(__file__).resolve().parent.parent
+sys.path.append(str(BASE_DIR))
 ENV_PATH = BASE_DIR / ".env"
 DATA_FILE = BASE_DIR.parent / "modulo1-scraper" / "data" / "convocatorias_full.json"
 DB_NAME = "subvenia"

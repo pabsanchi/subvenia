@@ -45,11 +45,11 @@ El módulo lee `MONGO_URI` del archivo `.env` del Módulo 2.
 ### Warmup de Ollama (Cold Start Fix)
 Para evitar que la primera consulta tarde demasiado:
 ```bash
-PYTHONPATH=. python modules/modulo3-rag/src/warmup_ollama.py
+python modules/modulo3-rag/src/warmup_ollama.py
 ```
 
 ### Prueba del Pipeline RAG
 Ejecuta una consulta de prueba hardcodeada ("¿Hay ayudas para digitalizar mi comercio?"):
 ```bash
-PYTHONPATH=. python modules/modulo3-rag/src/rag_core.py
+python modules/modulo3-rag/src/rag_core.py
 ```

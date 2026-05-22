@@ -8,6 +8,7 @@ las guarda de manera persistente evitando duplicidades.
 """
 
 import os
+import sys
 import json
 import logging
 from datetime import date
@@ -19,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 # Configuración de rutas relativas
 BASE_DIR = Path(__file__).resolve().parent.parent
+sys.path.append(str(BASE_DIR))
 DATA_DIR = BASE_DIR / "data"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 

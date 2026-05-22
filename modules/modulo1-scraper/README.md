@@ -84,7 +84,7 @@ GEMINI_API_KEY=tu_clave_api_aquí
 ### 1. Modo Simulación (MVP)
 Para iniciar la extracción simulada sobre portales HTML de ejemplo:
 ```bash
-PYTHONPATH=. python src/scraper.py
+python src/scraper.py
 ```
 Generará o actualizará el archivo `data/ayudas.json`.
 
@@ -94,14 +94,14 @@ El flujo real de recogida y procesamiento semántico se divide en dos fases inde
 #### Fase A: Recogida Incremental Raw
 Descarga de forma incremental todas las nuevas convocatorias publicadas en BDNS desde la fecha del último éxito (o por defecto desde el 1 de enero de 2026) hasta hoy:
 ```bash
-PYTHONPATH=. python src/fetch_raw.py
+python src/fetch_raw.py
 ```
 Genera o actualiza el archivo `data/lista_convocatorias_raw.json` y actualiza la fecha en `data/seguimiento_procesos.json`.
 
 #### Fase B: Análisis Semántico, Clasificación y Vectorización Atómica con Gemini
 Descarga los PDFs de las convocatorias crudas pendientes de procesar, realiza el análisis semántico detallado de requisitos (colectivos, edad, nivel de administración, plazos, etc.) con Gemini, compila el texto estructurado en español y genera de forma local sus vectores de embeddings (768 dims) antes de almacenarlos. Todo se consolida y guarda de forma atómica en `data/convocatorias_full.json`:
 ```bash
-PYTHONPATH=. python src/analyze_gemini.py
+python src/analyze_gemini.py
 ```
 
 * **Vectorización Local Atómica:** Utiliza de forma local el modelo `intfloat/multilingual-e5-base` para codificar semánticamente toda la convocatoria, previniendo estados inconsistentes de almacenamiento (guardado de metadatos sin vectores).

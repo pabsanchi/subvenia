@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import logging
 from pathlib import Path
@@ -14,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 # Configuraciones Base
 BASE_DIR = Path(__file__).resolve().parent.parent
+sys.path.append(str(BASE_DIR))
 # El usuario solicitó usar el .env ya existente (el de modulo2-db)
 ENV_PATH = BASE_DIR.parent / "modulo2-db" / ".env"
 DB_NAME = "subvenia"
