@@ -15,7 +15,7 @@ import logging
 from pathlib import Path
 from typing import List, Dict, Any
 from dotenv import load_dotenv
-from pymongo import MongoClient
+from pymongo import MongoClient, UpdateOne
 from pymongo.errors import BulkWriteError
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -62,13 +62,32 @@ def process_and_ingest(client: MongoClient, data_path: Path) -> int:
     db = client[DB_NAME]
     collection = db[COLLECTION_NAME]
 
-    logger.info("Borrando documentos antiguos de la colección (reingesta limpia)...")
-    collection.delete_many({})
+    operations = []
+    for doc in data:
+        doc_id = doc.get("_id")
+        if not doc_id:
+            continue
+            
+        doc_without_id = {k: v for k, v in doc.items() if k != "_id"}
+        
+        # Upsert: Si existe actualiza los datos ($set), si es nuevo inserta todo e inicializa el contador a 0 ($setOnInsert)
+        op = UpdateOne(
+            {"_id": doc_id},
+            {
+                "$set": doc_without_id,
+                "$setOnInsert": {"rag_retrieval_count": 0}
+            },
+            upsert=True
+        )
+        operations.append(op)
+
+    if not operations:
+        return 0
 
     try:
-        result = collection.insert_many(data, ordered=False)
-        count = len(result.inserted_ids)
-        logger.info(f"Se han indexado correctamente {count} documentos.")
+        result = collection.bulk_write(operations, ordered=False)
+        count = result.upserted_count + result.modified_count
+        logger.info(f"Ingesta masiva completada. Documentos insertados/modificados: {count}")
         return count
     except BulkWriteError as bwe:
         logger.warning(f"Errores durante la indexación: {bwe.details}")

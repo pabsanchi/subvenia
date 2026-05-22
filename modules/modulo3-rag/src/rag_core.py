@@ -87,7 +87,7 @@ class RAGCore:
             },
             {
                 "$project": {
-                    "_id": 0,
+                    "_id": 1,
                     "descripcion": 1,
                     "descripcionLeng": 1,
                     "geographic_scope": 1,
@@ -103,6 +103,7 @@ class RAGCore:
         collection = db[COLLECTION_NAME]
         
         resultados = []
+        ids_recuperados = []
         try:
             cursor = collection.aggregate(pipeline)
             for doc in cursor:
@@ -123,6 +124,19 @@ class RAGCore:
                     doc["portal_url"] = BDNS_SEARCH_URL
                     
                 resultados.append(doc)
+                if "_id" in doc:
+                    ids_recuperados.append(doc["_id"])
+                    
+            if ids_recuperados:
+                try:
+                    collection.update_many(
+                        {"_id": {"$in": ids_recuperados}},
+                        {"$inc": {"rag_retrieval_count": 1}}
+                    )
+                    logger.debug(f"Se incrementó rag_retrieval_count para {len(ids_recuperados)} documentos.")
+                except Exception as e:
+                    logger.error(f"Error actualizando el contador RAG: {e}")
+                    
         except Exception as e:
             logger.error(f"Error durante $vectorSearch: {e}")
 
