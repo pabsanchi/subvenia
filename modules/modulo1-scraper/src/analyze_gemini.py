@@ -564,12 +564,11 @@ def flujo_completado_masivo_convocatorias():
             print(f"El progreso se ha guardado en la posición {i}. Ejecuta el script de nuevo cuando se restablezca el servicio.\n")
             return
         else:
-            # Error inesperado (ej. PDF corrupto o fallo de BDNS) -> Detenemos para revisión manual
-            logger.error(f"🛑 PROCESO DETENIDO por error inesperado en la convocatoria {n_conv_str}.")
-            print(f"\n[AVISO DE ERROR] Deteniendo para revisión manual debido a fallo en convocatoria {n_conv_str}.")
-            print(f"Mensaje de error: {resultado[1]}")
-            print(f"Corrige la incidencia e inténtalo de nuevo. El progreso actual se mantiene intacto.\n")
-            return
+            # Error inesperado (ej. PDF corrupto, 400 bad request, fallo de BDNS) -> Omitimos y continuamos
+            logger.error(f"⚠️ Error al procesar la convocatoria {n_conv_str}. Se omitirá y pasará a la siguiente.")
+            logger.error(f"Mensaje de error: {resultado[1]}")
+            incrementar_raws_rellenadas()
+            continue
 
     logger.info("🎉 Proceso masivo de enriquecimiento finalizado con éxito.")
 
