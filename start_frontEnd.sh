@@ -6,6 +6,8 @@ echo "🚀 INICIANDO SUBVENIA (RAG + Frontend)"
 echo "======================================"
 echo ""
 
+sudo systemctl start ollama
+
 echo "Paso 1: Verificando y calentando el modelo en Ollama..."
 # Asegurarse de que el servicio está activo (puede requerir sudo, pero asumimos que ya está)
 # Lanzamos el script de warmup
