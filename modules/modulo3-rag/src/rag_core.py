@@ -27,7 +27,7 @@ MODEL_NAME = "intfloat/multilingual-e5-base"
 # Elasticsearch devuelve scores coseno normalizados entre 0 y 1.
 # 0.75 es un buen equilibrio: captura resultados genuinamente relevantes
 # sin devolver ruido. Ajustar según la experiencia del usuario.
-MIN_SIMILARITY_SCORE = 0.75
+MIN_SIMILARITY_SCORE = 0.85
 
 # URL del buscador general de la BDNS (el portal no soporta deep links directos)
 BDNS_SEARCH_URL = "https://www.pap.hacienda.gob.es/bdnstrans/GE/es/convocatorias"
@@ -58,7 +58,7 @@ class RAGCore:
         self.encoder = SentenceTransformer(MODEL_NAME)
         logger.info("Modelo de embeddings cargado correctamente.")
 
-    def buscar_ayudas(self, pregunta: str, max_results: int = 20, min_score: float = MIN_SIMILARITY_SCORE) -> List[Dict[str, Any]]:
+    def buscar_ayudas(self, pregunta: str, max_results: int = 1, min_score: float = MIN_SIMILARITY_SCORE) -> List[Dict[str, Any]]:
         """
         Convierte la pregunta a vector y busca en Elasticsearch mediante kNN.
         Devuelve TODOS los documentos cuya similitud coseno supere el umbral min_score,
@@ -78,7 +78,7 @@ class RAGCore:
         pipeline = [
             {
                 "$vectorSearch": {
-                    "index": "vector_index",
+                    "index": "autoembed_index",
                     "path": "embedding",
                     "queryVector": vector_query,
                     "numCandidates": 100,
@@ -232,21 +232,9 @@ class RAGCore:
             contexto_texto += f"Referencia: {doc.get('referencia_busqueda', 'N/A')}\n"
             contexto_texto += f"Portal oficial para consultar: {doc.get('portal_url', BDNS_SEARCH_URL)}\n"
 
-        system_prompt = (
-            "Eres un experto en ayudas públicas y subvenciones de la Comunidad Valenciana. "
-            "Tu trabajo es ayudar a los ciudadanos a encontrar TODAS las ayudas que les puedan servir. "
-            "\n\nREGLAS ESTRICTAS:\n"
-            "1. Responde ÚNICAMENTE con la información del contexto proporcionado. "
-            "Si la respuesta no está en el contexto, di 'No tengo información sobre eso en mi base de datos actual'.\n"
-            "2. Menciona y describe TODAS las convocatorias del contexto que sean relevantes para la pregunta del usuario, "
-            "no te limites a una sola. Para cada una, indica: título, a quién va dirigida, plazo de solicitud (si disponible), "
-            "y ámbito geográfico.\n"
-            "3. Para cada convocatoria, indica siempre su número de referencia BDNS (ej: 'Convocatoria BDNS nº 906912') "
-            "y explica al usuario que puede buscar ese número en el portal oficial de la BDNS para obtener toda la información "
-            "y documentación oficial.\n"
-            "4. Si hay requisitos específicos (edad, residencia, situación laboral), indícalos claramente.\n"
-            "5. Responde siempre en español de forma clara y accesible para cualquier ciudadano."
-        )
+        prompt_path = Path(__file__).resolve().parent / "prompt.txt"
+        with open(prompt_path, "r", encoding="utf-8") as f:
+            system_prompt = f.read()
 
         prompt = f"Contexto:\n{contexto_texto}\n\nPregunta: {pregunta}\nRespuesta:"
 
