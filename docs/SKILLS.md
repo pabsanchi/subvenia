@@ -49,40 +49,50 @@ cd modules/modulo1-scraper
 python src/analyze_gemini.py
 ```
 
-## Módulo 2: Ingesta, Base de Datos y Visualización (Elasticsearch + Kibana en Docker)
+## Módulo 5: Buscador filtrado
 
-### Gestión de Contenedores
-El archivo `docker-compose.yaml` está en la raíz del proyecto. Los comandos Docker deben ejecutarse desde ahí:
+### Ejecutar Tests
 ```bash
-cd /home/dev/projects/subvenia
-# Levantar en segundo plano
-docker compose up -d
-# Ver logs de un contenedor
-docker logs subvenia_elasticsearch
-# Apagar todo
-docker compose down
+cd modules/modulo5-buscador
+python -m pytest tests/test_buscador.py -v
 ```
+
+## Módulo 6: Mapa de recursos sociales
+
+### Ejecutar Tests
+```bash
+cd modules/modulo6-recursos
+python -m pytest tests/test_recursos.py -v
+```
+
+## Módulo 2: Ingesta en MongoDB Atlas
 
 ### Ejecución de Pruebas (Tests)
-El Módulo 2 cuenta con dos suites de pruebas:
 
-1. **Unitarias (Mock):** Validan el mapping y manejo de errores sin levantar Elasticsearch:
+1. **Unitarias (Mock):** Validan la lógica de ingesta y manejo de errores sin conexión real:
 ```bash
 cd modules/modulo2-db
-pytest tests/test_db.py -v
+python -m pytest tests/test_db.py -v
 ```
 
-2. **Integración (Real):** Interactúan con el contenedor de Elasticsearch insertando datos en un índice temporal y verificando búsquedas reales. Si el contenedor está apagado, hacen `SKIP`.
+2. **Integración (Real):** Requieren `MONGO_URI` configurado. Si no hay conexión, hacen `SKIP` automáticamente:
 ```bash
 cd modules/modulo2-db
-pytest tests/test_integration.py -v
+python -m pytest tests/test_integration.py -v
 ```
 
 ### Ejecutar la Ingesta
-El script leerá `convocatorias_full.json` del Módulo 1 (ya con vectores reales de 768 dims) y lo inyectará en el índice `ayudas_sociales_full` de Elasticsearch. **Los contenedores deben estar levantados antes de ejecutar esto:**
 ```bash
-cd modules/modulo2-db
-python src/ingest.py
+python modules/modulo2-db/src/ingest.py
+```
+
+### Retroalimentar campos Gemini (documentos existentes)
+Para añadir `status`, `aid_type` y `granting_body_level` a documentos procesados antes del fix:
+```bash
+# Previsualizar sin escribir
+python modules/modulo2-db/src/backfill_gemini_fields.py --dry-run
+# Ejecutar
+python modules/modulo2-db/src/backfill_gemini_fields.py
 ```
 
 ## Módulo 3: Motor RAG (Retrieval-Augmented Generation)
