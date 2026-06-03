@@ -321,7 +321,12 @@ def guardar_convocatoria_full(numero_convocatoria_str, gemini_result, vectorizer
         convocatoria_completa = raw_convocatoria.copy()
         convocatoria_completa['beneficiaries'] = gemini_result[1]['beneficiaries']
         convocatoria_completa['deadline'] = gemini_result[1].get('deadline', 'desconocido')
-        convocatoria_completa['geographic_scope'] = gemini_result[1].get('geographic_scope', 'desconocido')
+        convocatoria_completa['geographic_scope'] = gemini_result[1].get('geographic_scope', {})
+        # Campos adicionales que Gemini extrae y que el buscador filtrado necesita
+        convocatoria_completa['status'] = gemini_result[1].get('status')
+        convocatoria_completa['aid_type'] = gemini_result[1].get('aid_type')
+        convocatoria_completa['frequency'] = gemini_result[1].get('frequency')
+        convocatoria_completa['granting_body_level'] = gemini_result[1].get('granting_body_level')
 
         # Vectorizar atómicamente antes de guardar en convocatorias_full.json
         if vectorizer is not None:
