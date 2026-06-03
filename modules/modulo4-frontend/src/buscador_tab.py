@@ -144,16 +144,20 @@ def render() -> None:
     if "buscador_results" not in st.session_state:
         st.session_state.buscador_results = None
         st.session_state.buscador_error = None
+        st.session_state.buscador_hidden = 0
         st.session_state.buscador_filters_used = {}
 
     if limpiar:
         st.session_state.buscador_results = None
         st.session_state.buscador_error = None
+        st.session_state.buscador_hidden = 0
 
     if buscar:
         with st.spinner("Consultando base de datos..."):
             try:
-                results = buscar_convocatorias(
+                # Pedimos más resultados de los que mostraremos para absorber
+                # los que el post-filtrado UI descarte (status=null con deadline pasado).
+                raw = buscar_convocatorias(
                     situacion_laboral=lab_sel or None,
                     situacion_familiar=fam_sel or None,
                     vulnerabilidad=vul_sel or None,
@@ -161,8 +165,22 @@ def render() -> None:
                     aid_types=[aid_sel] if aid_sel else None,
                     geo_level=geo_sel,
                     texto=texto_sel.strip() or None,
+                    max_results=80,
+                    exclude_closed=True,
                 )
-                st.session_state.buscador_results = results
+
+                # Segunda capa: filtrar docs con status=null cuyo deadline
+                # ya pasó (get_status() los deriva como "cerrada").
+                open_results = []
+                hidden_extra = 0
+                for doc in raw:
+                    if get_status(doc)[0] == "cerrada":
+                        hidden_extra += 1
+                    else:
+                        open_results.append(doc)
+
+                st.session_state.buscador_results = open_results[:60]
+                st.session_state.buscador_hidden = hidden_extra
                 st.session_state.buscador_error = None
                 st.session_state.buscador_filters_used = {
                     "situacion_laboral": lab_sel,
@@ -173,6 +191,7 @@ def render() -> None:
             except Exception as e:
                 st.session_state.buscador_error = str(e)
                 st.session_state.buscador_results = None
+                st.session_state.buscador_hidden = 0
 
     # -------------------------------------------------------------------------
     # Mostrar resultados desde session_state
@@ -201,6 +220,15 @@ def render() -> None:
     st.success(f"**{n}** {'convocatoria encontrada' if n == 1 else 'convocatorias encontradas'}")
     if n == 60:
         st.caption("Mostrando los primeros 60 resultados. Añade filtros para acotar.")
+
+    hidden = st.session_state.get("buscador_hidden", 0)
+    if hidden:
+        noun = "convocatoria cerrada" if hidden == 1 else "convocatorias cerradas"
+        st.info(
+            f"ℹ️ Hay **{hidden}** {noun} que también coincide"
+            f"{'n' if hidden > 1 else ''} con tu búsqueda, pero se ha"
+            f"{'n' if hidden > 1 else ''} ocultado."
+        )
 
     selected_keys = st.session_state.buscador_filters_used
     any_profile = any(selected_keys.values())

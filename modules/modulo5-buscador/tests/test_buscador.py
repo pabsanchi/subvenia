@@ -153,8 +153,8 @@ class TestBuscarConvocatorias:
         return client
 
     @patch("buscador_client._get_client")
-    def test_empty_filters_produce_empty_query(self, mock_get_client):
-        """Sin filtros, la query a MongoDB debe ser {}."""
+    def test_empty_filters_exclude_closed_by_default(self, mock_get_client):
+        """Sin filtros de perfil, la query solo debe excluir cerradas."""
         mock_client = self._make_mock_client([])
         mock_get_client.return_value = mock_client
 
@@ -162,7 +162,32 @@ class TestBuscarConvocatorias:
 
         col = mock_client["subvenia"]["convocatorias"]
         query_used = col.find.call_args[0][0]
+        assert query_used == {"status": {"$ne": "cerrada"}}
+
+    @patch("buscador_client._get_client")
+    def test_exclude_closed_false_produces_empty_query(self, mock_get_client):
+        """Con exclude_closed=False y sin filtros, la query debe ser {}."""
+        mock_client = self._make_mock_client([])
+        mock_get_client.return_value = mock_client
+
+        buscar_convocatorias(exclude_closed=False)
+
+        col = mock_client["subvenia"]["convocatorias"]
+        query_used = col.find.call_args[0][0]
         assert query_used == {}
+
+    @patch("buscador_client._get_client")
+    def test_exclude_closed_combines_with_profile_filters(self, mock_get_client):
+        """exclude_closed debe coexistir con los filtros $or de perfil."""
+        mock_client = self._make_mock_client([])
+        mock_get_client.return_value = mock_client
+
+        buscar_convocatorias(situacion_laboral=["desempleado"])
+
+        col = mock_client["subvenia"]["convocatorias"]
+        query_used = col.find.call_args[0][0]
+        assert "$or" in query_used
+        assert query_used.get("status") == {"$ne": "cerrada"}
 
     @patch("buscador_client._get_client")
     def test_profile_filters_generate_or_query(self, mock_get_client):

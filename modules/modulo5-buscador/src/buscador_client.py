@@ -93,6 +93,7 @@ def buscar_convocatorias(
     geo_level: str | None = None,
     texto: str | None = None,
     max_results: int = 60,
+    exclude_closed: bool = True,
 ) -> list[dict[str, Any]]:
     """
     Devuelve convocatorias que coincidan con el perfil del usuario.
@@ -111,6 +112,7 @@ def buscar_convocatorias(
     geo_level : clave de GEO_LEVELS (requiere campo `geographic_scope.level`)
     texto : texto libre para búsqueda por regex en `descripcion`
     max_results : límite de resultados devueltos
+    exclude_closed : si True (defecto), excluye documentos con status='cerrada'
     """
     query: dict[str, Any] = {}
     or_conditions = []
@@ -136,6 +138,12 @@ def buscar_convocatorias(
     if texto and texto.strip():
         safe_texto = re.escape(texto.strip())
         query["descripcion"] = {"$regex": safe_texto, "$options": "i"}
+
+    # Excluir convocatorias explícitamente cerradas a nivel de BD.
+    # Los documentos con status=null (deadline no parseable) se filtran
+    # en la capa UI con get_status() para capturar los derivados-cerrados.
+    if exclude_closed:
+        query["status"] = {"$ne": "cerrada"}
 
     projection = {
         "_id": 1,
