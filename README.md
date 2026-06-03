@@ -104,6 +104,7 @@ SubvenIA ofrece tres modos de acceso desde la misma interfaz (tabs):
 
 - Upsert masivo a MongoDB Atlas con el `id` de la convocatoria como `_id`.
 - Búsqueda semántica via índice `autoembed_index` (Atlas Vector Search).
+- `backfill_gemini_fields.py` — script de retroalimentación para documentos procesados antes de la corrección de `analyze_gemini.py`. Deriva `status` (desde `deadline` con dateparser), `aid_type` (keyword matching en `descripcion`) y `granting_body_level` (desde `nivel1` BDNS) sin necesidad de re-procesar los PDFs. Idempotente: solo actualiza campos ausentes. Admite `--dry-run`.
 
 ### 🟢 Módulo 3: Motor RAG (`modules/modulo3-rag/`)
 **Estado:** Operativo ✅
