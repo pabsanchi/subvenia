@@ -1,68 +1,94 @@
 import os
 import sys
 
-# Añadir ruta para importar RAGCore desde el Módulo 3
-modulo3_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../modulo3-rag/src'))
-if modulo3_path not in sys.path:
-    sys.path.append(modulo3_path)
+# Módulo 3 (RAG)
+_mod3 = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../modulo3-rag/src"))
+if _mod3 not in sys.path:
+    sys.path.insert(0, _mod3)
 
 import streamlit as st
 from rag_core import RAGCore
+import buscador_tab
+import recursos_tab
 
-# Configuración visual
 st.set_page_config(
     page_title="SubvenIA",
     page_icon="🏛️",
-    layout="centered"
+    layout="wide",
 )
 
-st.title("Bienvenido a SubvenIA - Asistente de Ayudas Públicas.")
-st.markdown("Describe tu situación actual para que pueda ayudarte a encontrar ayudas dirigidas a ti.")
 
-# Caché del motor RAG para no recargar el modelo de embeddings (~1GB) en cada interacción
-@st.cache_resource
-def get_rag_core():
+# ---------------------------------------------------------------------------
+# @st.cache_resource DEBE estar a nivel de módulo, nunca dentro de un bloque
+# `with tab:`. Si se define dentro del bloque, Streamlit crea un objeto función
+# nuevo en cada re-render y la caché nunca se reutiliza, causando que RAGCore
+# (modelo de 1GB) se recargue en cada interacción del usuario.
+# ---------------------------------------------------------------------------
+@st.cache_resource(show_spinner="Cargando modelo de IA... (solo ocurre la primera vez)")
+def get_rag_core() -> RAGCore:
     return RAGCore()
 
-try:
-    rag = get_rag_core()
-except Exception as e:
-    st.error(f"Error al inicializar el motor RAG: {e}")
-    st.stop()
 
-# Inicializar el estado de sesión para guardar el historial de la conversación
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+st.title("🏛️ SubvenIA — Asistente de Ayudas Públicas")
+st.caption("Encuentra subvenciones y recursos sociales de la Comunitat Valenciana")
 
-# Mostrar el historial del chat
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+tab_rag, tab_buscador, tab_recursos = st.tabs([
+    "🤖 Asistente conversacional",
+    "🔍 Buscador filtrado",
+    "🗺️ Recursos sociales en Valencia",
+])
 
-# Input del usuario
-if prompt := st.chat_input("Escribe tu pregunta sobre ayudas..."):
-    # 1. Mostrar mensaje del usuario
-    with st.chat_message("user"):
-        st.markdown(prompt)
-    
-    # 2. Guardar mensaje del usuario en estado de sesión
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    
-    # 3. Procesamiento y respuesta del asistente
-    with st.chat_message("assistant"):
-        with st.spinner("Buscando en bases oficiales y analizando..."):
-            try:
-                # Recuperar contexto
-                contexto_docs = rag.buscar_ayudas(prompt)
-                
-                # Generar respuesta
-                respuesta = rag.generar_respuesta(prompt, contexto_docs)
-                
-                # Mostrar la respuesta
-                st.markdown(respuesta)
-                
-                # Guardar respuesta del asistente en el historial
-                st.session_state.messages.append({"role": "assistant", "content": respuesta})
-                
-            except Exception as e:
-                st.error(f"Se produjo un error al procesar tu solicitud: {e}")
+# =============================================================================
+# Tab 1: RAG conversacional
+# =============================================================================
+with tab_rag:
+    st.markdown(
+        "Describe tu situación con tus propias palabras y el asistente buscará "
+        "las ayudas más adecuadas para ti."
+    )
+
+    rag_instance = None
+    rag_error = None
+    try:
+        rag_instance = get_rag_core()
+    except Exception as e:
+        rag_error = str(e)
+
+    if rag_error:
+        st.error(f"Error al inicializar el motor RAG: {rag_error}")
+    else:
+        if "messages" not in st.session_state:
+            st.session_state.messages = []
+
+        for message in st.session_state.messages:
+            with st.chat_message(message["role"]):
+                st.markdown(message["content"])
+
+        if prompt := st.chat_input("Escribe tu pregunta sobre ayudas..."):
+            with st.chat_message("user"):
+                st.markdown(prompt)
+            st.session_state.messages.append({"role": "user", "content": prompt})
+
+            with st.chat_message("assistant"):
+                with st.spinner("Buscando en bases oficiales y analizando..."):
+                    try:
+                        contexto_docs = rag_instance.buscar_ayudas(prompt)
+                        respuesta = rag_instance.generar_respuesta(prompt, contexto_docs)
+                        st.markdown(respuesta)
+                        st.session_state.messages.append(
+                            {"role": "assistant", "content": respuesta}
+                        )
+                    except Exception as e:
+                        st.error(f"Se produjo un error al procesar tu solicitud: {e}")
+
+# =============================================================================
+# Tab 2: Buscador filtrado (Módulo 5)
+# =============================================================================
+with tab_buscador:
+    buscador_tab.render()
+
+# =============================================================================
+# Tab 3: Mapa de recursos sociales (Módulo 6)
+# =============================================================================
+with tab_recursos:
+    recursos_tab.render()
