@@ -1,4 +1,4 @@
-# 🏛️ SubvenIA - Repositorio Principal
+# 🏛️ SubvenIA — Repositorio Principal
 
 SubvenIA es un sistema basado en RAG (Retrieval-Augmented Generation) diseñado para la extracción, indexación y consulta de ayudas públicas y subvenciones (con foco inicial en la Comunidad Valenciana).
 
@@ -12,13 +12,13 @@ Si es la primera vez que descargas el repositorio, simplemente ejecuta el instal
 ```bash
 ./install.sh
 ```
+
 > [!IMPORTANT]
-> **Configuración Obligatoria:** Abre el archivo `.env` generado en la raíz y configura tus credenciales (`GEMINI_API_KEY` y `MONGO_URI`). Si la base de datos de MongoDB no tiene datos (no haces los Pasos 1, 2 y 3), el asistente virtual no podrá responder.
+> **Configuración obligatoria:** Abre el archivo `.env` generado en la raíz y configura tus credenciales (`GEMINI_API_KEY` y `MONGO_URI`). Sin datos en MongoDB el asistente no puede responder.
 
+---
 
-## 🚀 Guía Rápida de Ejecución (Paso a Paso)
-
-Para arrancar el proyecto completo desde cero y actualizar las convocatorias, sigue estos pasos en orden:
+## 🚀 Guía rápida de ejecución (paso a paso)
 
 ### Paso 0: Entorno
 
@@ -33,23 +33,28 @@ Este script se conecta a la API oficial de la BDNS para descargar nuevas convoca
 python modules/modulo1-scraper/src/fetch_raw.py
 ```
 
-### Paso 2: Análisis Semántico y Vectorización (Gemini)
-Este script toma las convocatorias descargadas, baja sus PDFs oficiales, los procesa con **Gemini** (usando el nuevo SDK `google-genai`) para estructurar sus requisitos (forzando etiquetas de booleanos) y genera localmente el vector semántico (768 dimensiones).
+### Paso 2: Análisis semántico y vectorización (Gemini)
+
+Descarga los PDFs oficiales, los procesa con Gemini y genera vectores localmente:
+
 ```bash
 python modules/modulo1-scraper/src/analyze_gemini.py
 ```
 
-### Paso 3: Subida a la Base de Datos (MongoDB Atlas)
-Una vez extraídos los datos y generados los vectores, este script los sube de forma masiva a tu clúster de MongoDB Atlas.
+### Paso 3: Subida a la base de datos (MongoDB Atlas)
+
 ```bash
 python modules/modulo2-db/src/ingest.py
 ```
-*(Nota: Requiere que tengas configurado el `MONGO_URI` en tu archivo `.env` y el índice vectorial `$vectorSearch` creado en Atlas).*
+
+*(Requiere `MONGO_URI` en `.env` y el índice vectorial `autoembed_index` creado en Atlas.)*
+
+### Paso 4: Levantar la aplicación
 
 ### Paso 4: Levantar la Aplicación (Ollama + Frontend)
 Hemos creado un script que automáticamente "despierta" (warmup) el modelo local en Ollama y luego levanta la interfaz gráfica de Streamlit para que puedas chatear.
 ```bash
-./start_app.sh
+./start_frontEnd.sh
 ```
 
 > [!TIP]
