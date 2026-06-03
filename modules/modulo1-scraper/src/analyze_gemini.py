@@ -53,6 +53,7 @@ else:
         load_dotenv()
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+PROMPT_PATH = BASE_DIR / "src" / "prompt.txt"
 
 if not GEMINI_API_KEY:
     logger.error("❌ GEMINI_API_KEY no encontrada en las variables de entorno ni en los archivos .env.")
@@ -403,20 +404,8 @@ def extraer_datos_convocatoria(ruta_pdf):
 
         logger.info("Documento subido y listo. Ejecutando análisis semántico...")
 
-        prompt = """
-        Eres un experto legal analizando convocatorias de ayudas estatales.
-        Lee este documento y extrae la información requerida siguiendo estrictamente el esquema JSON proporcionado.
-
-        INSTRUCCIONES CRÍTICAS DE CLASIFICACIÓN (OPTIMIZADO PARA BÚSQUEDA SEMÁNTICA):
-        1. MULTI-ETIQUETA OBLIGATORIA: En los diccionarios de beneficiarios (situacion_familiar, situacion_laboral, vulnerabilidad, colectivos_generales), debes rellenar CADA CAMPO con un valor booleano. Usa True solo si la ayuda va dirigida explícitamente a ese colectivo. Usa False si la categoría no es relevante o no aplica para solicitar la ayuda.
-        2. BENEFICIARIOS: Analiza el texto para detectar múltiples colectivos. No te limites a uno.
-        3. GEOGRAFÍA: Determina el nivel (autonómico, provincial, municipal) y especifica el nombre de la región o municipio de forma clara.
-        4. FECHA LÍMITE: Extrae la fecha final de solicitud. Utiliza solo fechas específicas (ej. "31 de Diciembre de 2026"). Si no es clara o es indefinida, usa "desconocido".
-        5. LENGUAJE CIUDADANO Y CONCISO: Las descripciones deben ser claras, concisas (máximo 150 caracteres) y utilizar el vocabulario coloquial que usaría un ciudadano al buscar la ayuda en internet (ej. usar "ayuda para pagar el alquiler" en lugar de "subvención de concurrencia competitiva para el arrendamiento"). Esto es CRUCIAL para relacionar la ayuda con las peticiones de los usuarios.
-        6. TIPO Y ESTADO: Clasifica el tipo de ayuda (beca, subvención, premio, etc.).
-
-        IMPORTANTE: Responde exclusivamente en formato JSON. Todo el texto descriptivo debe estar en español.
-        """
+        with open(PROMPT_PATH, "r", encoding="utf-8") as f:
+            prompt = f.read()
 
         response = client.models.generate_content(
             model='gemini-2.5-flash-lite',

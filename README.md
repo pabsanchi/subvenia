@@ -94,6 +94,8 @@ SubvenIA ofrece tres modos de acceso desde la misma interfaz (tabs):
 
 - Descarga convocatorias de la BDNS via API oficial (`bdns-fetch`).
 - Usa `gemini-2.5-flash-lite` (`google-genai`) para extraer estructura semántica: beneficiarios (booleanos por colectivo), tipo de ayuda, estado, ámbito geográfico, fecha límite.
+- El prompt de Gemini está en `src/prompt.txt` — editarlo directamente para ajustar la clasificación sin tocar código Python.
+- El prompt incluye definiciones detalladas por categoría para evitar errores frecuentes (ej: `personas_mayores` solo aplica a tercera edad, no a "mayores de X años" genérico) y fuerza clasificación multi-etiqueta.
 - Vectoriza con `intfloat/multilingual-e5-base` (768 dimensiones).
 - **Los campos `status`, `aid_type`, `frequency` y `granting_body_level` se guardan desde esta versión** para habilitar el buscador filtrado (Módulo 5).
 
