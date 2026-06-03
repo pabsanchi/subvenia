@@ -1,32 +1,23 @@
 """
-Tests unitarios para el Módulo 2: Ingesta en Elasticsearch.
+Tests unitarios para el Módulo 2: Ingesta en MongoDB Atlas.
 
 Estrategia de testing:
-  - Se usa unittest.mock para simular el cliente de Elasticsearch,
-    de modo que los tests se ejecutan sin necesidad de tener levantado
-    el contenedor Docker.
+  - Se usa unittest.mock para simular el cliente de MongoDB,
+    de modo que los tests se ejecutan sin necesidad de conexión real.
   - Se valida:
-    1. Que el cliente se inicializa con las credenciales correctas del .env.
-    2. Que el mapping del índice se crea correctamente, incluyendo el
-       campo dense_vector de 768 dimensiones para el futuro RAG.
-    3. Que no se intenta recrear un índice existente.
-    4. Que el proceso de ingesta inyecta el embedding mock (768 ceros)
-       y usa la API bulk correctamente.
+    1. Que get_mongo_client lanza ValueError si falta MONGO_URI.
+    2. Que process_and_ingest genera las operaciones de upsert correctamente.
+    3. Que documentos con campo 'id' reciben '_id' y se ignoran sin 'id'.
+    4. Que un JSON vacío o inexistente devuelve 0 sin crashear.
 """
 
-import os
 import json
+import os
 import pytest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-from src.ingest import (
-    get_es_client,
-    create_index,
-    process_and_ingest,
-    INDEX_NAME,
-    EMBEDDING_DIMS,
-)
+from src.ingest import get_mongo_client, process_and_ingest
 
 
 # ---------------------------------------------------------------------------
@@ -34,152 +25,128 @@ from src.ingest import (
 # ---------------------------------------------------------------------------
 
 @pytest.fixture
-def mock_env_vars():
-    """Simula las variables de entorno necesarias para la conexión."""
-    with patch.dict(os.environ, {"ELASTIC_PASSWORD": "dummy_password"}):
-        yield
-
-
-@pytest.fixture
-def mock_es_client():
-    """Retorna un cliente de Elasticsearch simulado (MagicMock)."""
-    return MagicMock()
-
-
-@pytest.fixture
 def sample_json(tmp_path):
-    """Crea un JSON temporal simulando la salida del Módulo 1."""
+    """JSON temporal simulando la salida del Módulo 1 con embeddings."""
     data = [
         {
-            "source_id": "BDNS-TEST",
-            "title": "Ayuda de prueba",
-            "issuer": "Test Issuer",
-            "description": "Desc test",
-            "beneficiaries": "Benef test",
-            "url": "http://test.com",
-            "start_date": "2026-01-01",
-            "end_date": "2026-12-31",
-            "status": "Abierta",
-            "source_type": "Portal Web Oficial",
-            "region": "Comunidad Valenciana"
-        }
+            "id": 123456,
+            "descripcion": "BECAS PARA JÓVENES INVESTIGADORES 2026",
+            "numeroConvocatoria": "906001",
+            "deadline": "2026-12-31",
+            "status": "abierta",
+            "aid_type": "beca",
+            "beneficiaries": {
+                "situacion_laboral": {"desempleado": False},
+                "colectivos_generales": {"jovenes": True, "estudiantes_o_investigadores": True},
+            },
+            "geographic_scope": {"level": "autonomico", "region_name": "Comunitat Valenciana"},
+            "embedding": [0.1] * 768,
+        },
+        {
+            "id": 789012,
+            "descripcion": "SUBVENCIONES COMERCIO LOCAL 2026",
+            "numeroConvocatoria": "906002",
+            "deadline": "2026-06-30",
+            "status": "cerrada",
+            "aid_type": "subvencion",
+            "beneficiaries": {},
+            "geographic_scope": {"level": "municipal", "region_name": "Valencia"},
+            "embedding": [0.2] * 768,
+        },
     ]
-    file_path = tmp_path / "ayudas.json"
-    with open(file_path, "w", encoding="utf-8") as f:
-        json.dump(data, f)
-    return file_path
+    p = tmp_path / "convocatorias_full.json"
+    p.write_text(json.dumps(data), encoding="utf-8")
+    return p
+
+
+@pytest.fixture
+def mock_mongo_client():
+    """Cliente de MongoDB simulado que acepta bulk_write."""
+    client = MagicMock()
+    collection = client.__getitem__.return_value.__getitem__.return_value
+    bulk_result = MagicMock()
+    bulk_result.upserted_count = 2
+    bulk_result.modified_count = 0
+    collection.bulk_write.return_value = bulk_result
+    return client
 
 
 # ---------------------------------------------------------------------------
 # Tests de conexión
 # ---------------------------------------------------------------------------
 
-def test_get_es_client(mock_env_vars):
-    """Prueba que el cliente se inicializa apuntando a localhost:9200."""
-    es = get_es_client()
-    assert es is not None
-    nodes = es.transport.node_pool.all()
-    assert len(nodes) == 1
-    assert nodes[0].host == "localhost"
-    assert nodes[0].port == 9200
+class TestGetMongoClient:
 
-
-def test_get_es_client_missing_password():
-    """Prueba que lanza error si falta la contraseña en el .env."""
-    with patch.dict(os.environ, {}, clear=True):
-        with patch("src.ingest.load_dotenv"):  # Evitar que lea el .env real
-            with pytest.raises(ValueError, match="ELASTIC_PASSWORD"):
-                get_es_client()
-
-
-# ---------------------------------------------------------------------------
-# Tests de creación de índice
-# ---------------------------------------------------------------------------
-
-def test_create_index_not_exists(mock_es_client):
-    """Prueba la creación del índice con el mapping completo."""
-    mock_es_client.indices.exists.return_value = False
-
-    create_index(mock_es_client)
-
-    mock_es_client.indices.exists.assert_called_once_with(index=INDEX_NAME)
-    mock_es_client.indices.create.assert_called_once()
-
-    # Verificar que el mapping incluye el campo embedding
-    call_args = mock_es_client.indices.create.call_args[1]
-    mapping = call_args["body"]["mappings"]["properties"]
-    assert "embedding" in mapping
-    assert mapping["embedding"]["type"] == "dense_vector"
-    assert mapping["embedding"]["dims"] == EMBEDDING_DIMS
-    assert mapping["embedding"]["similarity"] == "cosine"
-
-    # Verificar campos keyword
-    for field in ["source_id", "issuer", "status", "url", "source_type", "region"]:
-        assert mapping[field]["type"] == "keyword", f"{field} debería ser keyword"
-
-    # Verificar campos text con analyzer spanish
-    for field in ["title", "description", "beneficiaries"]:
-        assert mapping[field]["type"] == "text", f"{field} debería ser text"
-        assert mapping[field]["analyzer"] == "spanish", f"{field} debería usar analyzer spanish"
-
-    # Verificar campos date
-    for field in ["start_date", "end_date"]:
-        assert mapping[field]["type"] == "date", f"{field} debería ser date"
-
-
-def test_create_index_already_exists(mock_es_client):
-    """Prueba que no se intenta recrear un índice existente."""
-    mock_es_client.indices.exists.return_value = True
-    create_index(mock_es_client)
-    mock_es_client.indices.create.assert_not_called()
+    def test_raises_if_mongo_uri_missing(self):
+        """Debe lanzar ValueError si MONGO_URI no está configurada."""
+        with patch.dict(os.environ, {}, clear=True):
+            with patch("src.ingest.load_dotenv"):
+                with pytest.raises(ValueError, match="MONGO_URI"):
+                    get_mongo_client()
 
 
 # ---------------------------------------------------------------------------
 # Tests de ingesta
 # ---------------------------------------------------------------------------
 
-@patch("src.ingest.helpers.bulk")
-def test_process_and_ingest(mock_bulk, mock_es_client, sample_json):
-    """Prueba la inyección del embedding mock y la carga en bulk."""
-    mock_bulk.return_value = (1, [])
+class TestProcessAndIngest:
 
-    success_count = process_and_ingest(mock_es_client, sample_json)
+    def test_ingest_returns_correct_count(self, mock_mongo_client, sample_json):
+        """Debe devolver el número de documentos insertados/actualizados."""
+        count = process_and_ingest(mock_mongo_client, sample_json)
+        assert count == 2
 
-    assert success_count == 1
-    mock_bulk.assert_called_once()
+    def test_ingest_calls_bulk_write(self, mock_mongo_client, sample_json):
+        """Debe llamar a bulk_write con las operaciones correctas."""
+        process_and_ingest(mock_mongo_client, sample_json)
+        collection = mock_mongo_client["subvenia"]["convocatorias"]
+        collection.bulk_write.assert_called_once()
 
-    # Extraer las acciones pasadas a bulk
-    actions_arg = mock_bulk.call_args[0][1]
-    actions_list = list(actions_arg)
+    def test_ingest_sets_id_from_id_field(self, mock_mongo_client, sample_json):
+        """Cada documento con campo 'id' debe usar ese valor como '_id'."""
+        process_and_ingest(mock_mongo_client, sample_json)
+        collection = mock_mongo_client["subvenia"]["convocatorias"]
+        ops = collection.bulk_write.call_args[0][0]
 
-    assert len(actions_list) == 1
-    doc = actions_list[0]
+        ids_used = [op._filter["_id"] for op in ops]
+        assert 123456 in ids_used
+        assert 789012 in ids_used
 
-    # Comprobar metadatos de indexación
-    assert doc["_index"] == INDEX_NAME
-    assert doc["_id"] == "BDNS-TEST"
+    def test_ingest_skips_docs_without_id(self, mock_mongo_client, tmp_path):
+        """Documentos sin campo 'id' deben ser ignorados."""
+        data = [{"descripcion": "Sin ID", "embedding": [0.0] * 768}]
+        p = tmp_path / "sin_id.json"
+        p.write_text(json.dumps(data), encoding="utf-8")
 
-    # Comprobar inyección del embedding mock (valores mínimos no-cero)
-    assert "embedding" in doc["_source"]
-    assert len(doc["_source"]["embedding"]) == EMBEDDING_DIMS
-    assert all(v == 1e-7 for v in doc["_source"]["embedding"])
+        count = process_and_ingest(mock_mongo_client, p)
+        collection = mock_mongo_client["subvenia"]["convocatorias"]
+        collection.bulk_write.assert_not_called()
+        assert count == 0
 
+    def test_ingest_empty_file_returns_zero(self, mock_mongo_client, tmp_path):
+        """Un JSON vacío debe devolver 0 sin llamar a bulk_write."""
+        p = tmp_path / "vacio.json"
+        p.write_text("[]", encoding="utf-8")
 
-@patch("src.ingest.helpers.bulk")
-def test_process_and_ingest_empty_file(mock_bulk, mock_es_client, tmp_path):
-    """Prueba que un JSON vacío no intenta hacer bulk."""
-    empty_file = tmp_path / "empty.json"
-    with open(empty_file, "w") as f:
-        json.dump([], f)
+        count = process_and_ingest(mock_mongo_client, p)
+        assert count == 0
+        mock_mongo_client["subvenia"]["convocatorias"].bulk_write.assert_not_called()
 
-    result = process_and_ingest(mock_es_client, empty_file)
+    def test_ingest_missing_file_returns_zero(self, mock_mongo_client, tmp_path):
+        """Un archivo inexistente debe devolver 0 sin crashear."""
+        missing = tmp_path / "no_existe.json"
+        count = process_and_ingest(mock_mongo_client, missing)
+        assert count == 0
 
-    assert result == 0
-    mock_bulk.assert_not_called()
+    def test_ingest_warns_missing_embedding(self, mock_mongo_client, tmp_path, caplog):
+        """Debe emitir warning si un documento no tiene embedding."""
+        data = [{"id": 1, "descripcion": "Sin vector", "embedding": None}]
+        p = tmp_path / "sin_vector.json"
+        p.write_text(json.dumps(data), encoding="utf-8")
 
+        import logging
+        with caplog.at_level(logging.WARNING):
+            process_and_ingest(mock_mongo_client, p)
 
-def test_process_and_ingest_missing_file(mock_es_client, tmp_path):
-    """Prueba que un archivo inexistente devuelve 0 sin crashear."""
-    missing = tmp_path / "no_existe.json"
-    result = process_and_ingest(mock_es_client, missing)
-    assert result == 0
+        assert any("sin vector" in m.lower() or "embedding" in m.lower()
+                   for m in caplog.messages)

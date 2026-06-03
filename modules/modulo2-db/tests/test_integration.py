@@ -1,134 +1,139 @@
 """
-Tests de Integración para el Módulo 2: Elasticsearch.
+Tests de integración para el Módulo 2: Ingesta en MongoDB Atlas.
 
-Estos tests interactúan con el contenedor real de Elasticsearch.
-Si el contenedor no está levantado, los tests se saltan (SKIP)
-automáticamente para no romper la suite de CI/CD.
+Estos tests requieren una conexión real a MongoDB Atlas (MONGO_URI en .env).
+Si no hay conexión disponible, los tests se saltan automáticamente (SKIP)
+para no romper la suite de CI/CD en entornos sin credenciales.
 """
 
-import os
-import time
 import json
-import uuid
+import os
 import pytest
-from elasticsearch import exceptions
+from pathlib import Path
+from dotenv import load_dotenv
+from pymongo import MongoClient
+from pymongo.errors import ConnectionFailure
 
-from src.ingest import (
-    get_es_client,
-    create_index,
-    process_and_ingest,
-    EMBEDDING_DIMS,
-)
+from src.ingest import get_mongo_client, process_and_ingest
+
+# Nombre de colección temporal para los tests — no contamina datos reales
+TEST_COLLECTION = "test_integration_tmp"
 
 
 @pytest.fixture(scope="module")
-def real_es_client():
+def real_mongo_client():
     """
-    Intenta obtener un cliente real de ES. Si no hay conexión
-    o las credenciales no están, salta los tests de este módulo.
+    Intenta conectar a MongoDB Atlas. Si no hay conexión o falta MONGO_URI,
+    salta los tests de este módulo.
     """
+    load_dotenv(Path(__file__).resolve().parent.parent.parent.parent / ".env")
+    uri = os.getenv("MONGO_URI")
+    if not uri:
+        pytest.skip("MONGO_URI no configurada — tests de integración omitidos.")
     try:
-        es = get_es_client()
-        es.info()  # Falla si no hay conexión
-        return es
-    except (exceptions.ConnectionError, ValueError) as e:
-        pytest.skip(f"Elasticsearch no está disponible para tests de integración: {e}")
+        client = MongoClient(uri, serverSelectionTimeoutMS=5000)
+        client.admin.command("ping")
+        return client
+    except (ConnectionFailure, Exception) as e:
+        pytest.skip(f"MongoDB no disponible: {e}")
 
 
-@pytest.fixture
-def test_index(real_es_client):
-    """
-    Genera un nombre de índice único para cada test y lo borra al terminar,
-    evitando ensuciar el entorno de desarrollo o producción.
-    """
-    index_name = f"test_ayudas_sociales_{uuid.uuid4().hex[:8]}"
-    yield index_name
-    
-    # Teardown: borrar el índice después del test
-    if real_es_client.indices.exists(index=index_name):
-        real_es_client.indices.delete(index=index_name)
+@pytest.fixture(autouse=True)
+def cleanup(real_mongo_client):
+    """Elimina la colección de test antes y después de cada test."""
+    real_mongo_client["subvenia"][TEST_COLLECTION].drop()
+    yield
+    real_mongo_client["subvenia"][TEST_COLLECTION].drop()
 
 
 @pytest.fixture
 def sample_json(tmp_path):
-    """Crea un JSON temporal simulando la salida del Scraper."""
+    """JSON temporal con dos convocatorias de prueba."""
     data = [
         {
-            "source_id": "BDNS-INT-1",
-            "title": "Ayuda de Integración 1",
-            "issuer": "Test Issuer",
-            "description": "Prueba de búsqueda full-text en español.",
-            "beneficiaries": "Programadores",
-            "url": "http://test.com/1",
-            "start_date": "2026-01-01",
-            "end_date": "2026-12-31",
-            "status": "Abierta",
-            "source_type": "Portal Web Oficial",
-            "region": "Comunidad Valenciana"
+            "id": 99000001,
+            "descripcion": "TEST — Becas investigación",
+            "numeroConvocatoria": "T001",
+            "deadline": "2026-12-31",
+            "status": "abierta",
+            "aid_type": "beca",
+            "embedding": [0.1] * 768,
         },
         {
-            "source_id": "BDNS-INT-2",
-            "title": "Ayuda de Integración 2",
-            "issuer": "Test Issuer",
-            "description": "Otra prueba.",
-            "beneficiaries": "Empresas",
-            "url": "http://test.com/2",
-            "start_date": "2026-01-01",
-            "end_date": "2026-12-31",
-            "status": "Cerrada",
-            "source_type": "Portal Web Oficial",
-            "region": "Comunidad Valenciana"
-        }
+            "id": 99000002,
+            "descripcion": "TEST — Subvención comercio",
+            "numeroConvocatoria": "T002",
+            "deadline": "2025-01-01",
+            "status": "cerrada",
+            "aid_type": "subvencion",
+            "embedding": [0.2] * 768,
+        },
     ]
-    file_path = tmp_path / "ayudas_int.json"
-    with open(file_path, "w", encoding="utf-8") as f:
-        json.dump(data, f)
-    return file_path
+    p = tmp_path / "test_data.json"
+    p.write_text(json.dumps(data), encoding="utf-8")
+    return p
 
 
-def test_real_create_index(real_es_client, test_index):
-    """Verifica que el índice se crea en el contenedor real con el mapping correcto."""
-    create_index(real_es_client, index_name=test_index)
-    
-    assert real_es_client.indices.exists(index=test_index)
-    
-    # Obtener el mapping real del servidor
-    mapping = real_es_client.indices.get_mapping(index=test_index)
-    properties = mapping[test_index]["mappings"]["properties"]
-    
-    # Validar que los campos de IA están correctamente configurados
-    assert "embedding" in properties
-    assert properties["embedding"]["type"] == "dense_vector"
-    assert properties["embedding"]["dims"] == EMBEDDING_DIMS
-    
-    # Validar analizador de texto
-    assert properties["description"]["type"] == "text"
-    assert properties["description"]["analyzer"] == "spanish"
+def _ingest_to_test_collection(client, data_path):
+    """Wrapper que dirige la ingesta a la colección temporal de test."""
+    from pymongo import UpdateOne
+    from pymongo.errors import BulkWriteError
+    import logging
+
+    with open(data_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    db = client["subvenia"]
+    col = db[TEST_COLLECTION]
+    operations = []
+    for doc in data:
+        if not doc.get("id"):
+            continue
+        doc["_id"] = doc["id"]
+        doc_without_id = {k: v for k, v in doc.items() if k != "_id"}
+        operations.append(UpdateOne(
+            {"_id": doc["_id"]},
+            {"$set": doc_without_id, "$setOnInsert": {"rag_retrieval_count": 0}},
+            upsert=True,
+        ))
+    if not operations:
+        return 0
+    result = col.bulk_write(operations, ordered=False)
+    return result.upserted_count + result.modified_count
 
 
-def test_real_ingest_and_search(real_es_client, test_index, sample_json):
-    """Verifica que los datos se ingieren y pueden ser buscados."""
-    # 1. Crear índice
-    create_index(real_es_client, index_name=test_index)
-    
-    # 2. Ingestar datos
-    success_count = process_and_ingest(real_es_client, sample_json, index_name=test_index)
-    assert success_count == 2
-    
-    # Elasticsearch es near-real-time, hay que forzar un refresh para que
-    # los documentos estén inmediatamente disponibles para búsqueda
-    real_es_client.indices.refresh(index=test_index)
-    
-    # 3. Buscar (Test de Búsqueda Full-Text con el analyzer spanish)
-    search_res = real_es_client.search(
-        index=test_index,
-        query={"match": {"description": "búsqueda"}}
-    )
-    
-    hits = search_res["hits"]["hits"]
-    assert len(hits) == 1
-    assert hits[0]["_source"]["source_id"] == "BDNS-INT-1"
-    
-    # Validar que el embedding inyectado tiene los valores correctos (1e-7 mock)
-    assert len(hits[0]["_source"]["embedding"]) == EMBEDDING_DIMS
-    assert hits[0]["_source"]["embedding"][0] == 1e-7
+def test_real_ingest_inserts_documents(real_mongo_client, sample_json):
+    """Verifica que los documentos se insertan correctamente en MongoDB."""
+    count = _ingest_to_test_collection(real_mongo_client, sample_json)
+    assert count == 2
+
+    col = real_mongo_client["subvenia"][TEST_COLLECTION]
+    assert col.count_documents({}) == 2
+
+
+def test_real_ingest_upsert_is_idempotent(real_mongo_client, sample_json):
+    """Ingestar dos veces no debe duplicar documentos."""
+    _ingest_to_test_collection(real_mongo_client, sample_json)
+    _ingest_to_test_collection(real_mongo_client, sample_json)
+
+    col = real_mongo_client["subvenia"][TEST_COLLECTION]
+    assert col.count_documents({}) == 2
+
+
+def test_real_ingest_id_field_is_set(real_mongo_client, sample_json):
+    """El campo '_id' debe coincidir con el campo 'id' del documento."""
+    _ingest_to_test_collection(real_mongo_client, sample_json)
+
+    col = real_mongo_client["subvenia"][TEST_COLLECTION]
+    doc = col.find_one({"_id": 99000001})
+    assert doc is not None
+    assert doc["descripcion"] == "TEST — Becas investigación"
+
+
+def test_real_ingest_initializes_rag_counter(real_mongo_client, sample_json):
+    """Los documentos nuevos deben tener rag_retrieval_count = 0."""
+    _ingest_to_test_collection(real_mongo_client, sample_json)
+
+    col = real_mongo_client["subvenia"][TEST_COLLECTION]
+    for doc in col.find({}):
+        assert doc.get("rag_retrieval_count") == 0
