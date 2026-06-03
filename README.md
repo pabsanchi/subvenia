@@ -1,6 +1,6 @@
 # 🏛️ SubvenIA — Repositorio Principal
 
-SubvenIA es un sistema basado en RAG (Retrieval-Augmented Generation) diseñado para la extracción, indexación y consulta de ayudas públicas y subvenciones (con foco inicial en la Comunidad Valenciana).
+SubvenIA es un sistema basado en IA diseñado para ayudar a los ciudadanos de la Comunitat Valenciana a encontrar ayudas públicas, subvenciones y recursos sociales. Combina un motor RAG conversacional para usuarios con poca experiencia digital con un buscador filtrado avanzado y un mapa de recursos físicos.
 
 Este proyecto sigue una arquitectura **Monorepo** y ha migrado su capa de datos a **MongoDB Atlas**.
 
@@ -22,7 +22,6 @@ Si es la primera vez que descargas el repositorio, simplemente ejecuta el instal
 
 ### Paso 0: Entorno
 
-simplemente activa el entorno:
 ```bash
 source venv/bin/activate
 ```
@@ -51,47 +50,83 @@ python modules/modulo2-db/src/ingest.py
 
 ### Paso 4: Levantar la aplicación
 
-### Paso 4: Levantar la Aplicación (Ollama + Frontend)
-Hemos creado un script que automáticamente "despierta" (warmup) el modelo local en Ollama y luego levanta la interfaz gráfica de Streamlit para que puedas chatear.
 ```bash
 ./start_frontEnd.sh
 ```
 
 > [!TIP]
-> **Para detener la aplicación:** Cuando termines de usarla, puedes ejecutar `./stop_app.sh` para matar el proceso de Streamlit y detener el servicio local de Ollama, liberando así los recursos de tu ordenador.
+> Para detener: `./stop_frontEnd.sh`
 
 ---
 
-## 📖 Documentación para Agentes y Desarrolladores
+## 🖥️ Modos de uso
 
-La documentación core del proyecto está organizada en la carpeta `docs/` para no ensuciar la raíz del proyecto. **Es de obligada lectura para retomar el trabajo:**
+SubvenIA ofrece tres modos de acceso desde la misma interfaz (tabs):
 
-- **[docs/AGENTS.md](./docs/AGENTS.md):** Reglas estrictas de comportamiento, arquitectura y roles para los agentes IA que programen en este repositorio.
-- **[docs/SKILLS.md](./docs/SKILLS.md):** Comandos esenciales para entornos virtuales y comandos de testing.
+### 🤖 Modo 1 — Asistente conversacional (RAG)
+**Para:** Usuarios con poca experiencia digital (personas mayores, etc.)  
+**Cómo funciona:** El usuario describe su situación en lenguaje natural y recibe una respuesta personalizada. Sin necesidad de conocer categorías ni filtros.  
+**Fuente de datos:** BDNS (vía MongoDB Atlas + Ollama/Llama3)
+
+### 🔍 Modo 2 — Buscador filtrado
+**Para:** Usuarios con conocimientos básicos de informática  
+**Cómo funciona:** El usuario selecciona su perfil (situación laboral, familiar, colectivo, vulnerabilidad) y aplica filtros adicionales (tipo de ayuda, ámbito geográfico). Muestra las convocatorias de la BDNS que coinciden.  
+**Fuente de datos:** BDNS (vía MongoDB Atlas, Módulo 5)
+
+### 🗺️ Modo 3 — Mapa de recursos sociales
+**Para:** Usuarios de cualquier perfil que necesiten saber dónde ir en persona  
+**Cómo funciona:** Muestra un mapa interactivo y una lista de centros, asociaciones y servicios sociales del Ayuntamiento de Valencia, filtrable por colectivo. Complementa los otros dos modos.  
+**Fuente de datos:** Portal de Datos Abiertos del Ayuntament de València (`opendata.vlci.valencia.es`), categoría Sociedad y Bienestar, licencia CC BY 4.0
 
 ---
 
-## 📊 Estado del Proyecto y Módulos
+## 📖 Documentación para agentes y desarrolladores
+
+- **[docs/AGENTS.md](./docs/AGENTS.md):** Reglas de comportamiento, arquitectura y roles para agentes IA.
+- **[docs/SKILLS.md](./docs/SKILLS.md):** Comandos de entorno virtual y testing.
+
+---
+
+## 📊 Estado del proyecto y módulos
 
 ### 🟢 Módulo 1: Scraper (`modules/modulo1-scraper/`)
-**Estado:** Completado + Extracción Estructurada con Gemini ✅
-- Se encarga de descargar las convocatorias desde la BDNS.
-- Emplea `gemini-2.5-flash-lite` (a través del SDK oficial `google-genai`) para extraer los datos obligando a un modelo estricto de diccionarios de booleanos (colectivos, situación laboral, vulnerabilidad).
-- Vectoriza los textos generados utilizando `intfloat/multilingual-e5-base`.
+**Estado:** Completado ✅
 
-### 🟢 Módulo 2: Ingesta en Base de Datos (`modules/modulo2-db/`)
+- Descarga convocatorias de la BDNS via API oficial (`bdns-fetch`).
+- Usa `gemini-2.5-flash-lite` (`google-genai`) para extraer estructura semántica: beneficiarios (booleanos por colectivo), tipo de ayuda, estado, ámbito geográfico, fecha límite.
+- Vectoriza con `intfloat/multilingual-e5-base` (768 dimensiones).
+- **Los campos `status`, `aid_type`, `frequency` y `granting_body_level` se guardan desde esta versión** para habilitar el buscador filtrado (Módulo 5).
+
+### 🟢 Módulo 2: Ingesta en base de datos (`modules/modulo2-db/`)
 **Estado:** Migrado a MongoDB Atlas ✅
-- Se conecta a la nube mediante `pymongo`.
-- Vuelca el JSON enriquecido completo utilizando la estructura dinámica de Mongo y el `_id` oficial de la convocatoria.
-- La búsqueda semántica depende de la creación manual del **Atlas Vector Search Index** en la plataforma.
 
-### 🟢 Módulo 3: Interfaz LLM y Retrieval (RAG) (`modules/modulo3-rag/`)
-**Estado:** Actualizado con `$vectorSearch` de MongoDB ✅
-- Convierte la pregunta del usuario en un vector.
-- Utiliza la etapa de agregación `$vectorSearch` nativa de MongoDB Atlas para encontrar las ayudas más similares.
-- Pasa el contexto altamente estructurado al LLM local (Ollama - Llama 3) para generar la respuesta en lenguaje natural.
-- Incluye script de calentamiento (`warmup_ollama.py`) para evitar tiempos de espera largos en la primera consulta.
+- Upsert masivo a MongoDB Atlas con el `id` de la convocatoria como `_id`.
+- Búsqueda semántica via índice `autoembed_index` (Atlas Vector Search).
 
-### 🟢 Módulo 4: Frontend (Streamlit)
-**Estado:** MVP Completado y Funcional ✅
-- Interfaz gráfica (chat) que consume el motor RAG del Módulo 3 y mantiene el historial conversacional.
+### 🟢 Módulo 3: Motor RAG (`modules/modulo3-rag/`)
+**Estado:** Operativo ✅
+
+- Convierte la pregunta del usuario en vector → `$vectorSearch` en MongoDB (umbral 0.85) → contexto estructurado → Ollama Llama 3 → respuesta en lenguaje natural.
+- Incluye warmup de Ollama (`warmup_ollama.py`).
+
+### 🟢 Módulo 4: Frontend Streamlit (`modules/modulo4-frontend/`)
+**Estado:** Actualizado con 3 tabs ✅
+
+- **Tab 1:** Chat RAG conversacional (Módulo 3).
+- **Tab 2:** Buscador filtrado (Módulo 5) — acceso directo a los datos de MongoDB con filtros por perfil.
+- **Tab 3:** Mapa de recursos sociales (Módulo 6) — datos del portal opendata.vlci.valencia.es.
+
+### 🟢 Módulo 5: Buscador filtrado (`modules/modulo5-buscador/`)
+**Estado:** Nuevo ✅
+
+- Consulta MongoDB con filtros estructurados basados en los campos booleanos de `beneficiaries`.
+- Lógica OR para filtros de perfil: muestra convocatorias relevantes para cualquiera de los criterios seleccionados.
+- Muestra tarjetas con estado (derivado de `deadline` si `status` no está disponible), organismo, condiciones adicionales y referencia BDNS.
+
+### 🟢 Módulo 6: Mapa de recursos sociales (`modules/modulo6-recursos/`)
+**Estado:** Nuevo ✅
+
+- Descarga datasets GeoJSON de la categoría «Sociedad y Bienestar» del portal de datos abiertos del Ayuntament de València.
+- Muestra centros y asociaciones sociales en un mapa interactivo con filtros por colectivo y búsqueda de texto.
+- Datos bajo licencia CC BY 4.0. Caché de 1 hora para evitar peticiones repetidas.
+- Cumple el requisito de uso de datos del portal `opendata.vlci.valencia.es` para los Premios de Datos Abiertos del Ayuntament de València 2026 (AD.TR.15).
