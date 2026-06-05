@@ -31,10 +31,14 @@ DATASETS: dict[str, str] = {
     "Enfermedad Mental": "SS_ENFERMEDAD_MENTAL.json",
     "Discapacidad Sensorial": "SS_DISCAPACIDAD_S.json",
     "Discapacidad Intelectual": "SS_DISCAPACIDAD_I.json",
+    "Discapacidad Física": "SS_DISCAPACIDAD_F.json",
     "Discapacidad (General)": "SS_DISCAPACIDAD.json",
+    "Personas Dependientes": "SS_DEPENDENCIA.json",
     "Presos y Exreclusos": "SS_PRESOS.json",
-    "Familias y Menores": "SS_FAMILIAS.json",
+    "Familias y Menores": "SS_FAMILIA_MENOR.json",
     "Trastornos Adictivos": "SS_ADICCIONES.json",
+    "Jóvenes": "SS_JUVENTUD.json",
+    "Cooperación Internacional": "SS_COOP_INTER.json",
     "Toda la Población": "SS_TODA_POBLACION.json",
 }
 
@@ -48,10 +52,14 @@ CATEGORY_COLORS: dict[str, str] = {
     "Enfermedad Mental": "#1ABC9C",
     "Discapacidad Sensorial": "#F39C12",
     "Discapacidad Intelectual": "#F1C40F",
+    "Discapacidad Física": "#F0A500",
     "Discapacidad (General)": "#D4AC0D",
+    "Personas Dependientes": "#A04000",
     "Presos y Exreclusos": "#95A5A6",
     "Familias y Menores": "#2ECC71",
     "Trastornos Adictivos": "#8E44AD",
+    "Jóvenes": "#17A589",
+    "Cooperación Internacional": "#2980B9",
     "Toda la Población": "#27AE60",
 }
 DEFAULT_COLOR = "#7F8C8D"
