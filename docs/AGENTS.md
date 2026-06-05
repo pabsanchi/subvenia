@@ -68,5 +68,5 @@ modulo6-recursos/  → Cliente CKAN datastore del portal opendata.vlci.valencia.
 
 - **Mejorar la calidad de clasificación Gemini:** Refinar el prompt para reducir falsos negativos en los campos booleanos de beneficiarios (muchas convocatorias con lenguaje legal genérico no se etiquetan correctamente).
 - **Añadir filtros avanzados en el buscador:** por rango de edad (`age_min`/`age_max`), por umbral de ingresos (`income_threshold`), por compatibilidad con otras ayudas.
-- **Mapa — resaltar recurso al hacer clic (tarea 15):** con pydeck ya migrado, capturar eventos de click requiere `st_pydeck_events` (librería externa) o un componente custom. Evaluar si compensa la complejidad frente al tooltip al hover ya implementado.
+- **Añadir filtros avanzados en el mapa:** filtrar por titularidad pública/privada, búsqueda por dirección o barrio.
 - **Escalabilidad del scraper:** Ejecución periódica automatizada del pipeline completo (cron o GitHub Actions).

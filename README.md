@@ -119,7 +119,7 @@ SubvenIA ofrece tres modos de acceso desde la misma interfaz (tabs):
 - **Página de inicio:** bloque de presentación con tarjeta por cada modo — a quién va dirigido, qué hace y fuente de datos.
 - **Tab 1:** Chat RAG conversacional (Módulo 3).
 - **Tab 2:** Buscador filtrado (Módulo 5) — paginación de 20 en 20, botón "Limpiar filtros" que resetea todos los widgets, tarjetas mejoradas con badges de color.
-- **Tab 3:** Mapa de recursos sociales (Módulo 6) — mapa pydeck con radio en metros (escala con zoom) y tooltip al hover.
+- **Tab 3:** Mapa de recursos sociales (Módulo 6) — mapa pydeck con radio en metros (escala con zoom), tooltip al hover y panel de detalle al hacer clic en un punto.
 
 ### 🟢 Módulo 5: Buscador filtrado (`modules/modulo5-buscador/`)
 **Estado:** Operativo
