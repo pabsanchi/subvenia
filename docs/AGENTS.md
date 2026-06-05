@@ -21,7 +21,7 @@ modulo2-db/        → Ingesta y upsert en MongoDB Atlas
 modulo3-rag/       → Motor RAG (embeddings + vectorSearch + Ollama)
 modulo4-frontend/  → Interfaz Streamlit (3 tabs: RAG, Buscador, Mapa)
 modulo5-buscador/  → Lógica de consulta filtrada a MongoDB
-modulo6-recursos/  → Cliente GeoJSON del portal opendata.vlci.valencia.es
+modulo6-recursos/  → Cliente CKAN datastore del portal opendata.vlci.valencia.es (17 datasets, ~1.038 recursos)
 ```
 
 ### Dependencias entre módulos (frontend)
@@ -37,7 +37,7 @@ modulo6-recursos/  → Cliente GeoJSON del portal opendata.vlci.valencia.es
 - **Agente DB (Módulo 2):** Persistencia de datos. Upsert idempotente en MongoDB Atlas.
 - **Agente RAG (Módulo 3):** Motor de recuperación semántica y generación de respuestas con Ollama.
 - **Agente Buscador (Módulo 5):** Consultas filtradas a MongoDB con lógica OR para perfil de usuario. Sin lógica de UI.
-- **Agente Recursos (Módulo 6):** Descarga y unificación de GeoJSON del portal opendata.vlci.valencia.es. Sin lógica de UI.
+- **Agente Recursos (Módulo 6):** Obtiene datos de 17 categorías de recursos sociales a través de la API datastore de CKAN (`opendata.vlci.valencia.es`). Convierte coordenadas UTM (EPSG:25830) a WGS84 con `pyproj`. Sin lógica de UI.
 - **Agente Frontend (Módulo 4):** Interfaz Streamlit. Orquesta los módulos 3, 5 y 6. No contiene lógica de negocio propia.
 
 ## Reglas Específicas: Base de Datos (MongoDB Atlas)
@@ -58,15 +58,15 @@ modulo6-recursos/  → Cliente GeoJSON del portal opendata.vlci.valencia.es
 
 ## Reglas Específicas: Módulo 6 (Recursos)
 
-- **Fuente:** `https://geoportal.valencia.es/apps/OpenData/SociedadBienestar/SS_*.json`
-- **Datasets:** Definidos en `DATASETS` de `recursos_client.py`. Los URLs no confirmados se intentan y se omiten silenciosamente si fallan.
+- **Fuente:** API datastore de CKAN — `https://opendata.vlci.valencia.es/api/3/action/datastore_search`. El geoportal GeoJSON (`geoportal.valencia.es/apps/OpenData/`) ha dejado de servir los ficheros (404).
+- **Datasets:** 17 categorías mapeadas en `DATASETS` de `recursos_client.py` como `{categoria: resource_id}`. Los resource IDs son estables; si un dataset falla se omite sin interrumpir los demás.
+- **Coordenadas:** los datos originales vienen en UTM ETRS89/Zona 30N (EPSG:25830, campos `X`/`Y`). Se convierten a WGS84 con `pyproj.Transformer`. El transformer `_UTM_TO_WGS84` se instancia a nivel de módulo para reutilizarlo.
 - **Caché:** `@st.cache_data(ttl=3600)` — los datos se recargan cada hora.
 - **Licencia:** CC BY 4.0 — siempre mostrar atribución en la UI.
 
 ## Siguientes Pasos Recomendados
 
-- **Retroalimentar documentos existentes en MongoDB** con `status` y `aid_type`: requiere un script de migración que re-procese los PDFs con Gemini (costoso en cuota de API) o que intente derivar estos campos de los datos BDNS disponibles.
 - **Mejorar la calidad de clasificación Gemini:** Refinar el prompt para reducir falsos negativos en los campos booleanos de beneficiarios (muchas convocatorias con lenguaje legal genérico no se etiquetan correctamente).
 - **Añadir filtros avanzados en el buscador:** por rango de edad (`age_min`/`age_max`), por umbral de ingresos (`income_threshold`), por compatibilidad con otras ayudas.
-- **Tests para Módulos 5 y 6:** Añadir `tests/` en cada módulo nuevo siguiendo el patrón existente.
+- **Mapa — resaltar recurso al hacer clic (tarea 15):** con pydeck ya migrado, capturar eventos de click requiere `st_pydeck_events` (librería externa) o un componente custom. Evaluar si compensa la complejidad frente al tooltip al hover ya implementado.
 - **Escalabilidad del scraper:** Ejecución periódica automatizada del pipeline completo (cron o GitHub Actions).

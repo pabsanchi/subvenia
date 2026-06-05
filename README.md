@@ -90,7 +90,7 @@ SubvenIA ofrece tres modos de acceso desde la misma interfaz (tabs):
 ## 📊 Estado del proyecto y módulos
 
 ### 🟢 Módulo 1: Scraper (`modules/modulo1-scraper/`)
-**Estado:** Completado ✅
+**Estado:** Operativo
 
 - Descarga convocatorias de la BDNS via API oficial (`bdns-fetch`).
 - Usa `gemini-2.5-flash-lite` (`google-genai`) para extraer estructura semántica: beneficiarios (booleanos por colectivo), tipo de ayuda, estado, ámbito geográfico, fecha límite.
@@ -100,36 +100,40 @@ SubvenIA ofrece tres modos de acceso desde la misma interfaz (tabs):
 - **Los campos `status`, `aid_type`, `frequency` y `granting_body_level` se guardan desde esta versión** para habilitar el buscador filtrado (Módulo 5).
 
 ### 🟢 Módulo 2: Ingesta en base de datos (`modules/modulo2-db/`)
-**Estado:** Migrado a MongoDB Atlas ✅
+**Estado:** Operativo
 
 - Upsert masivo a MongoDB Atlas con el `id` de la convocatoria como `_id`.
 - Búsqueda semántica via índice `autoembed_index` (Atlas Vector Search).
 - `backfill_gemini_fields.py` — script de retroalimentación para documentos procesados antes de la corrección de `analyze_gemini.py`. Deriva `status` (desde `deadline` con dateparser), `aid_type` (keyword matching en `descripcion`) y `granting_body_level` (desde `nivel1` BDNS) sin necesidad de re-procesar los PDFs. Idempotente: solo actualiza campos ausentes. Admite `--dry-run`.
 
 ### 🟢 Módulo 3: Motor RAG (`modules/modulo3-rag/`)
-**Estado:** Operativo ✅
+**Estado:** Operativo
 
 - Convierte la pregunta del usuario en vector → `$vectorSearch` en MongoDB (umbral 0.85) → contexto estructurado → Ollama Llama 3 → respuesta en lenguaje natural.
+- Filtra convocatorias cerradas en el pipeline de agregación (`$match status != "cerrada"` tras `$vectorSearch`). El `limit` interno se multiplica por 3 para compensar los descartados.
 - Incluye warmup de Ollama (`warmup_ollama.py`).
 
 ### 🟢 Módulo 4: Frontend Streamlit (`modules/modulo4-frontend/`)
-**Estado:** Actualizado con 3 tabs ✅
+**Estado:** Operativo
 
+- **Página de inicio:** bloque de presentación con tarjeta por cada modo — a quién va dirigido, qué hace y fuente de datos.
 - **Tab 1:** Chat RAG conversacional (Módulo 3).
-- **Tab 2:** Buscador filtrado (Módulo 5) — acceso directo a los datos de MongoDB con filtros por perfil.
-- **Tab 3:** Mapa de recursos sociales (Módulo 6) — datos del portal opendata.vlci.valencia.es.
+- **Tab 2:** Buscador filtrado (Módulo 5) — paginación de 20 en 20, botón "Limpiar filtros" que resetea todos los widgets, tarjetas mejoradas con badges de color.
+- **Tab 3:** Mapa de recursos sociales (Módulo 6) — mapa pydeck con radio en metros (escala con zoom) y tooltip al hover.
 
 ### 🟢 Módulo 5: Buscador filtrado (`modules/modulo5-buscador/`)
-**Estado:** Nuevo ✅
+**Estado:** Operativo
 
 - Consulta MongoDB con filtros estructurados basados en los campos booleanos de `beneficiaries`.
 - Lógica OR para filtros de perfil: muestra convocatorias relevantes para cualquiera de los criterios seleccionados.
-- Muestra tarjetas con estado (derivado de `deadline` si `status` no está disponible), organismo, condiciones adicionales y referencia BDNS.
+- Tarjetas con badge de estado coloreado (verde/amarillo/azul), organismo prominente, chips de colectivos coincidentes y referencia BDNS.
+- Paginación de 20 resultados por página con botones Anterior/Siguiente.
 
 ### 🟢 Módulo 6: Mapa de recursos sociales (`modules/modulo6-recursos/`)
-**Estado:** Nuevo ✅
+**Estado:** Operativo
 
-- Descarga datasets GeoJSON de la categoría «Sociedad y Bienestar» del portal de datos abiertos del Ayuntament de València.
-- Muestra centros y asociaciones sociales en un mapa interactivo con filtros por colectivo y búsqueda de texto.
+- Obtiene los datos de 17 categorías (~1.038 recursos) a través de la **API datastore de CKAN** (`opendata.vlci.valencia.es`), ya que el geoportal GeoJSON ha dejado de estar disponible.
+- Convierte coordenadas UTM ETRS89/Zona 30N (EPSG:25830) a WGS84 con `pyproj`.
+- Mapa interactivo con `pydeck` (`ScatterplotLayer`, radio en metros, tooltip al hover) con filtros por colectivo y búsqueda de texto.
 - Datos bajo licencia CC BY 4.0. Caché de 1 hora para evitar peticiones repetidas.
 - Cumple el requisito de uso de datos del portal `opendata.vlci.valencia.es` para los Premios de Datos Abiertos del Ayuntament de València 2026 (AD.TR.15).
