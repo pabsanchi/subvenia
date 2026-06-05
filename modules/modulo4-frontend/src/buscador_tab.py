@@ -22,19 +22,30 @@ from buscador_client import (
     get_status,
 )
 
-_STATUS_ICONS = {
-    "abierta": "🟢",
-    "cerrada": "🔴",
-    "proximamente": "🟡",
-    "permanente": "🔵",
-    "desconocida": "⚪",
-}
 _AID_ICONS = {
     "beca": "🎓", "subvencion": "💰", "prestacion": "🏛️",
     "ayuda_alquiler": "🏠", "ayuda_energia": "⚡", "ayuda_transporte": "🚌",
     "ayuda_alimentacion": "🍽️", "bonificacion": "📉",
     "deduccion_fiscal": "📋", "microcredito": "💳",
 }
+
+# (bg, fg) por estado para el badge HTML
+_STATUS_BADGE_COLORS = {
+    "abierta":      ("#d4edda", "#155724"),
+    "proximamente": ("#fff3cd", "#856404"),
+    "permanente":   ("#cce5ff", "#004085"),
+    "cerrada":      ("#f8d7da", "#721c24"),
+    "desconocida":  ("#e2e3e5", "#383d41"),
+}
+
+
+def _badge(text: str, bg: str, fg: str, extra_style: str = "") -> str:
+    style = (
+        f"display:inline-block;padding:2px 9px;border-radius:12px;"
+        f"background:{bg};color:{fg};font-size:0.78em;font-weight:600;"
+        f"margin:2px 3px 2px 0;{extra_style}"
+    )
+    return f"<span style='{style}'>{text}</span>"
 
 
 def _checkbox_group(label: str, options: dict, key_prefix: str) -> list[str]:
@@ -62,22 +73,30 @@ def _render_card(doc: dict, matching_tags: list[str]) -> None:
     with st.container(border=True):
         st.markdown(f"**{doc.get('descripcion', 'Sin descripción').strip()}**")
 
-        cols = st.columns([1, 1, 1])
-        cols[0].markdown(f"{_STATUS_ICONS.get(status_key, '⚪')} {status_label}")
-        if aid_type:
-            cols[1].markdown(f"{aid_icon} {aid_label}")
-        if geo_label:
-            cols[2].markdown(geo_text)
-
         if organismo:
-            st.caption(f"🏛️ {organismo}")
+            st.markdown(f"<span style='font-size:0.9em;color:#555'>🏛️ {organismo}</span>", unsafe_allow_html=True)
+
+        # Fila de badges: estado + tipo de ayuda + ámbito geográfico
+        bg, fg = _STATUS_BADGE_COLORS.get(status_key, ("#e2e3e5", "#383d41"))
+        row = _badge(status_label, bg, fg)
+        if aid_type:
+            row += _badge(f"{aid_icon} {aid_label}", "#e8f4f8", "#0c5460")
+        if geo_label:
+            row += _badge(geo_text, "#f0f0f0", "#444")
+        st.markdown(row, unsafe_allow_html=True)
+
         if deadline and deadline not in ("desconocido", ""):
             st.caption(f"📅 Plazo: {deadline}")
+
+        # Tags de coincidencia como chips verdes
+        if matching_tags:
+            chips = "".join(_badge(f"✓ {t}", "#e8f5e9", "#2e7d32") for t in matching_tags)
+            st.markdown(chips, unsafe_allow_html=True)
+
         if other_conditions:
             with st.expander("ℹ️ Condiciones adicionales"):
                 st.write(other_conditions)
-        if matching_tags:
-            st.markdown(" · ".join(f"`{t}`" for t in matching_tags))
+
         if n_conv:
             st.caption(
                 f"Ref. BDNS nº **{n_conv}** · "
