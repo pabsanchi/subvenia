@@ -32,6 +32,57 @@ def get_rag_core() -> RAGCore:
 st.title("🏛️ SubvenIA — Asistente de Ayudas Públicas")
 st.caption("Encuentra subvenciones y recursos sociales de la Comunitat Valenciana")
 
+st.divider()
+st.markdown(
+    "SubvenIA conecta a ciudadanos de la Comunitat Valenciana con las ayudas públicas "
+    "de la BDNS y los recursos sociales del Ayuntamiento de Valencia. "
+    "Elige el modo que mejor se adapte a ti:"
+)
+
+col1, col2, col3 = st.columns(3, gap="medium")
+
+with col1:
+    with st.container(border=True):
+        st.markdown("### 🤖 Asistente conversacional")
+        st.markdown(
+            "**Para quién:** personas que prefieren explicar su situación "
+            "con sus propias palabras, sin tener que manejar filtros ni formularios."
+        )
+        st.markdown(
+            "Describe lo que necesitas —*«soy autónomo y no puedo pagar el alquiler»*— "
+            "y el asistente busca en la base de datos oficial las ayudas más "
+            "adecuadas para ti."
+        )
+        st.caption("Fuente: BDNS · Motor: RAG + Ollama (llama3)")
+
+with col2:
+    with st.container(border=True):
+        st.markdown("### 🔍 Buscador filtrado")
+        st.markdown(
+            "**Para quién:** personas que se manejan con herramientas digitales "
+            "y quieren explorar el catálogo de convocatorias con control total sobre los filtros."
+        )
+        st.markdown(
+            "Selecciona tu situación laboral, familiar, colectivo o tipo de ayuda "
+            "y obtén la lista de convocatorias abiertas que coinciden con tu perfil."
+        )
+        st.caption("Fuente: BDNS · Solo convocatorias abiertas")
+
+with col3:
+    with st.container(border=True):
+        st.markdown("### 🗺️ Recursos sociales")
+        st.markdown(
+            "**Para quién:** cualquier persona que necesite localizar un servicio "
+            "social presencial —centro, asociación, entidad— en la ciudad de Valencia."
+        )
+        st.markdown(
+            "Mapa interactivo con más de 1.000 recursos organizados por colectivo: "
+            "mayores, familias, personas con discapacidad, inmigrantes y más."
+        )
+        st.caption("Fuente: Portal de Datos Abiertos del Ayuntament de València (CC BY 4.0)")
+
+st.divider()
+
 tab_rag, tab_buscador, tab_recursos = st.tabs([
     "🤖 Asistente conversacional",
     "🔍 Buscador filtrado",
