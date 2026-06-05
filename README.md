@@ -116,10 +116,13 @@ SubvenIA ofrece tres modos de acceso desde la misma interfaz (tabs):
 ### 🟢 Módulo 4: Frontend Streamlit (`modules/modulo4-frontend/`)
 **Estado:** Operativo
 
-- **Página de inicio:** bloque de presentación con tarjeta por cada modo — a quién va dirigido, qué hace y fuente de datos.
-- **Tab 1:** Chat RAG conversacional (Módulo 3).
-- **Tab 2:** Buscador filtrado (Módulo 5) — paginación de 20 en 20, botón "Limpiar filtros" que resetea todos los widgets, tarjetas mejoradas con badges de color.
-- **Tab 3:** Mapa de recursos sociales (Módulo 6) — mapa pydeck con radio en metros (escala con zoom), tooltip al hover y panel de detalle al hacer clic en un punto.
+Estructura multi-página. Tema visual centralizado en `.streamlit/config.toml` (paleta cálida, no tech).
+
+- **`app.py`** — landing page: presentación y botones de acceso a cada herramienta.
+- **`pages/1_Asistente.py`** — chat conversacional (Módulo 3). Textos en lenguaje ciudadano, sin jerga técnica.
+- **`pages/2_Buscador.py`** — buscador filtrado (Módulo 5). Paginación 20 en 20, botón limpiar filtros, tarjetas con badges de color.
+- **`pages/3_Recursos.py`** — mapa de recursos (Módulo 6). Mapa pydeck, panel de detalle al clic, listado debajo.
+- Todas las páginas incluyen enlace "← Volver al inicio".
 
 ### 🟢 Módulo 5: Buscador filtrado (`modules/modulo5-buscador/`)
 **Estado:** Operativo

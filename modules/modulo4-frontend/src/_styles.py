@@ -1,3 +1,22 @@
+"""
+Sistema de estilos globales de SubvenIA.
+
+Streamlit solo expone 4 variables de tema (primaryColor, backgroundColor,
+secondaryBackgroundColor, textColor). Para poder usar colores distintos en
+fondo de página, tarjetas e inputs definimos variables propias en config.toml
+y las aplicamos via CSS inyectado.
+
+Sistema de marcadores:
+  Para apuntar con CSS a contenedores concretos sin afectar a otros
+  stVerticalBlock de la página, cada tipo de tarjeta inyecta un div
+  invisible con una clase identificadora:
+    - .inicio-card-marker  → tarjetas de la landing (app.py)
+    - .ayuda-card-marker   → tarjetas de resultados del buscador (buscador_tab.py)
+    - .recurso-card-marker → panel de detalle del mapa (recursos_tab.py)
+  El CSS usa :has(.marker) para pintar solo el bloque que contiene ese div,
+  y :not(:has(stVerticalBlock .marker)) para evitar que el selector suba
+  a bloques padre que también lo contienen indirectamente.
+"""
 import os
 import tomllib
 import streamlit as st

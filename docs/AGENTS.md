@@ -19,7 +19,7 @@ Este documento define las reglas estrictas de comportamiento y desarrollo para c
 modulo1-scraper/   → Scraper BDNS + análisis Gemini + vectorización
 modulo2-db/        → Ingesta y upsert en MongoDB Atlas
 modulo3-rag/       → Motor RAG (embeddings + vectorSearch + Ollama)
-modulo4-frontend/  → Interfaz Streamlit (3 tabs: RAG, Buscador, Mapa)
+modulo4-frontend/  → Interfaz Streamlit multi-página (landing + 3 páginas: Asistente, Buscador, Recursos)
 modulo5-buscador/  → Lógica de consulta filtrada a MongoDB
 modulo6-recursos/  → Cliente CKAN datastore del portal opendata.vlci.valencia.es (17 datasets, ~1.038 recursos)
 ```
@@ -38,7 +38,7 @@ modulo6-recursos/  → Cliente CKAN datastore del portal opendata.vlci.valencia.
 - **Agente RAG (Módulo 3):** Motor de recuperación semántica y generación de respuestas con Ollama.
 - **Agente Buscador (Módulo 5):** Consultas filtradas a MongoDB con lógica OR para perfil de usuario. Sin lógica de UI.
 - **Agente Recursos (Módulo 6):** Obtiene datos de 17 categorías de recursos sociales a través de la API datastore de CKAN (`opendata.vlci.valencia.es`). Convierte coordenadas UTM (EPSG:25830) a WGS84 con `pyproj`. Sin lógica de UI.
-- **Agente Frontend (Módulo 4):** Interfaz Streamlit. Orquesta los módulos 3, 5 y 6. No contiene lógica de negocio propia.
+- **Agente Frontend (Módulo 4):** Interfaz Streamlit multi-página. `app.py` es la landing; las herramientas están en `pages/`. Orquesta los módulos 3, 5 y 6. No contiene lógica de negocio propia. Tema visual en `.streamlit/config.toml`.
 
 ## Reglas Específicas: Base de Datos (MongoDB Atlas)
 
