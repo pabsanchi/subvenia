@@ -136,7 +136,7 @@ def render() -> None:
     with col_btn:
         buscar = st.button("🔍 Buscar ayudas", type="primary", use_container_width=True)
     with col_clear:
-        limpiar = st.button("✕ Limpiar resultados", use_container_width=True)
+        limpiar = st.button("✕ Limpiar filtros", use_container_width=True)
 
     # -------------------------------------------------------------------------
     # Session state para persistir resultados entre re-renders
@@ -148,9 +148,21 @@ def render() -> None:
         st.session_state.buscador_filters_used = {}
 
     if limpiar:
+        for key in SITUACION_LABORAL:
+            st.session_state[f"lab_{key}"] = False
+        for key in SITUACION_FAMILIAR:
+            st.session_state[f"fam_{key}"] = False
+        for key in VULNERABILIDAD:
+            st.session_state[f"vul_{key}"] = False
+        for key in COLECTIVOS:
+            st.session_state[f"col_{key}"] = False
+        st.session_state["buscador_texto"] = ""
+        st.session_state["buscador_aid"] = 0
+        st.session_state["buscador_geo"] = 0
         st.session_state.buscador_results = None
         st.session_state.buscador_error = None
         st.session_state.buscador_hidden = 0
+        st.rerun()
 
     if buscar:
         with st.spinner("Consultando base de datos..."):
