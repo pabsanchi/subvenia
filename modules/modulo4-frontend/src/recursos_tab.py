@@ -148,6 +148,7 @@ def render() -> None:
             event = st.pydeck_chart(
                 pdk.Deck(layers=[layer], initial_view_state=view, tooltip=tooltip),
                 use_container_width=True,
+                height=420,
                 on_select="rerun",
                 selection_mode="single-object",
                 key="recursos_mapa",
@@ -169,6 +170,7 @@ def render() -> None:
             sel = selected_objects[0]
             cat_color = CATEGORY_COLORS.get(sel.get("categoria", ""), "#7F8C8D")
             with st.container(border=True):
+                st.markdown('<div class="recurso-card-marker"></div>', unsafe_allow_html=True)
                 st.markdown(
                     f"<span style='color:{cat_color};font-size:1.1em'>●</span> "
                     f"**{sel.get('descripcion', '—')}**",

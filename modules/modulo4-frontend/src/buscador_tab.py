@@ -71,6 +71,7 @@ def _render_card(doc: dict, matching_tags: list[str]) -> None:
     other_conditions = (doc.get("beneficiaries") or {}).get("other_conditions") or ""
 
     with st.container(border=True):
+        st.markdown('<div class="ayuda-card-marker"></div>', unsafe_allow_html=True)
         st.markdown(f"**{doc.get('descripcion', 'Sin descripción').strip()}**")
 
         if organismo:
@@ -99,16 +100,16 @@ def _render_card(doc: dict, matching_tags: list[str]) -> None:
 
         if n_conv:
             st.caption(
-                f"Ref. BDNS nº **{n_conv}** · "
-                f"[Buscar en el portal oficial ↗]({BDNS_PORTAL_URL})"
+                f"Nº de convocatoria: **{n_conv}** · "
+                f"[Ver en el portal oficial ↗]({BDNS_PORTAL_URL})"
             )
 
 
 def render() -> None:
-    st.markdown("### 🔍 Buscador de Ayudas y Subvenciones")
+    st.markdown("### 🔍 Buscador de ayudas")
     st.markdown(
-        "Selecciona tu situación para ver las convocatorias de la BDNS "
-        "para las que podrías ser elegible."
+        "Marca las opciones que describen tu situación y te mostraremos "
+        "las ayudas abiertas que podrían corresponderte."
     )
     st.divider()
 
@@ -234,19 +235,17 @@ def render() -> None:
     error = st.session_state.buscador_error
 
     if error:
-        st.error(f"Error al consultar la base de datos: {error}")
+        st.error("No hemos podido realizar la búsqueda. Inténtalo de nuevo en unos instantes.")
         return
 
     if results is None:
-        st.info(
-            "Selecciona tu perfil y pulsa **Buscar ayudas** para ver las convocatorias."
-        )
+        st.info("Marca las opciones que describen tu situación y pulsa **Buscar ayudas**.")
         return
 
     if not results:
         st.warning(
-            "No se encontraron convocatorias con esos filtros. "
-            "Prueba a seleccionar menos criterios."
+            "No hemos encontrado ayudas con esos criterios. "
+            "Prueba a marcar menos opciones para ampliar la búsqueda."
         )
         return
 
@@ -258,15 +257,15 @@ def render() -> None:
 
     st.success(f"**{n}** {'convocatoria encontrada' if n == 1 else 'convocatorias encontradas'}")
     if n == 60:
-        st.caption("Se muestran hasta 60 resultados. Añade filtros para acotar.")
+        st.caption("Mostrando los primeros 60 resultados. Añade más filtros para afinar.")
 
     hidden = st.session_state.get("buscador_hidden", 0)
     if hidden:
-        noun = "convocatoria cerrada" if hidden == 1 else "convocatorias cerradas"
+        noun = "ayuda cerrada" if hidden == 1 else "ayudas cerradas"
         st.info(
-            f"ℹ️ Hay **{hidden}** {noun} que también coincide"
-            f"{'n' if hidden > 1 else ''} con tu búsqueda, pero se ha"
-            f"{'n' if hidden > 1 else ''} ocultado."
+            f"ℹ️ También hay **{hidden}** {noun} que coincide"
+            f"{'n' if hidden > 1 else ''} con tu búsqueda, "
+            f"pero {'están' if hidden > 1 else 'está'} fuera de plazo y no se {'muestran' if hidden > 1 else 'muestra'}."
         )
 
     selected_keys = st.session_state.buscador_filters_used
@@ -294,6 +293,6 @@ def render() -> None:
 
     st.divider()
     st.caption(
-        "Datos de la [BDNS – Base de Datos Nacional de Subvenciones]"
-        f"({BDNS_PORTAL_URL}), procesados por SubvenIA."
+        f"Información extraída de la [Base de Datos Nacional de Subvenciones]({BDNS_PORTAL_URL}), "
+        "el registro oficial de ayudas públicas del Estado."
     )

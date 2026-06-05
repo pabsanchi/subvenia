@@ -1,0 +1,12 @@
+[theme]
+# Paleta cálida y accesible — orientada al ciudadano, no a tech ni a gobierno
+primaryColor             = "#ca9f7fff"   # naranja tostado — acento, botones, links
+backgroundColor          = "#ffffffff"   # blanco — por defecto para tablas y canvas
+secondaryBackgroundColor = "#F5EAD8"   # arena clara — sidebar, expanders
+textColor                = "#2C2416"   # carbón cálido — texto principal
+pageBackgroundColor      = "#EDD9C0"   # arena cálida — fondo de página
+containerBackgroundColor = "#107dc1ff"   # azul — tarjetas, contenedores
+inputBackgroundColor     = "#FFFFFF"   # blanco — campos de texto, inputs
+
+[browser]
+gatherUsageStats = false
