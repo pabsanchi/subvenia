@@ -107,24 +107,8 @@ def render() -> None:
         return
 
     # -------------------------------------------------------------------------
-    # Layout: tabla a la izquierda, mapa a la derecha
+    # Layout: mapa (izquierda, 2/3) + detalle (derecha, 1/3)
     # -------------------------------------------------------------------------
-    col_list, col_map = st.columns([1, 1], gap="medium")
-
-    with col_list:
-        st.markdown("#### Listado")
-        # Usar dataframe en lugar de N st.container() individuales.
-        # Renderizar cientos de containers bloquea la UI en cada re-render.
-        display_df = filtered[["categoria", "descripcion", "titularidad"]].copy()
-        display_df.columns = ["Colectivo", "Recurso", "Titular"]
-        display_df["Titular"] = display_df["Titular"].fillna("—")
-        st.dataframe(
-            display_df,
-            use_container_width=True,
-            hide_index=True,
-            height=min(400, 35 + 35 * len(display_df)),
-        )
-
     map_data = (
         filtered.dropna(subset=["lat", "lon"])[
             ["lat", "lon", "color", "descripcion", "titularidad", "categoria"]
@@ -132,6 +116,9 @@ def render() -> None:
         .copy()
         .reset_index(drop=True)
     )
+
+    event = None
+    col_map, col_detail = st.columns([2, 1], gap="medium")
 
     with col_map:
         st.markdown("#### Mapa")
@@ -165,31 +152,55 @@ def render() -> None:
                 selection_mode="single-object",
                 key="recursos_mapa",
             )
-            st.caption(f"{len(map_data)} recursos con coordenadas. Haz clic en un punto para ver el detalle.")
+            st.caption(f"{len(map_data)} recursos con coordenadas.")
         else:
-            event = None
             st.info("Sin coordenadas para los recursos seleccionados.")
 
     # -------------------------------------------------------------------------
-    # Panel de detalle — aparece al hacer clic en un punto del mapa
+    # Panel de detalle — siempre visible a la derecha del mapa
     # -------------------------------------------------------------------------
     selected_objects = []
     if event and event.selection:
         selected_objects = (event.selection.get("objects") or {}).get("recursos-layer", [])
 
-    if selected_objects:
-        sel = selected_objects[0]
-        cat_color = CATEGORY_COLORS.get(sel.get("categoria", ""), "#7F8C8D")
-        with st.container(border=True):
+    with col_detail:
+        st.markdown("#### Detalle")
+        if selected_objects:
+            sel = selected_objects[0]
+            cat_color = CATEGORY_COLORS.get(sel.get("categoria", ""), "#7F8C8D")
+            with st.container(border=True):
+                st.markdown(
+                    f"<span style='color:{cat_color};font-size:1.1em'>●</span> "
+                    f"**{sel.get('descripcion', '—')}**",
+                    unsafe_allow_html=True,
+                )
+                if sel.get("titularidad"):
+                    st.markdown(f"🏛️ {sel['titularidad']}")
+                st.caption(f"📂 {sel.get('categoria', '')}")
+        else:
             st.markdown(
-                f"<span style='color:{cat_color};font-size:1.1em'>●</span> "
-                f"**{sel.get('descripcion', '—')}**",
+                "<div style='color:#999;padding:24px 0;text-align:center'>"
+                "Haz clic en un punto del mapa para ver sus detalles."
+                "</div>",
                 unsafe_allow_html=True,
             )
-            cols = st.columns([2, 1])
-            if sel.get("titularidad"):
-                cols[0].markdown(f"🏛️ {sel['titularidad']}")
-            cols[1].caption(f"📂 {sel.get('categoria', '')}")
+
+    # -------------------------------------------------------------------------
+    # Listado completo — debajo del mapa, a ancho completo
+    # -------------------------------------------------------------------------
+    st.divider()
+    st.markdown("#### Listado")
+    # Usar dataframe en lugar de N st.container() individuales.
+    # Renderizar cientos de containers bloquea la UI en cada re-render.
+    display_df = filtered[["categoria", "descripcion", "titularidad"]].copy()
+    display_df.columns = ["Colectivo", "Recurso", "Titular"]
+    display_df["Titular"] = display_df["Titular"].fillna("—")
+    st.dataframe(
+        display_df,
+        use_container_width=True,
+        hide_index=True,
+        height=min(400, 35 + 35 * len(display_df)),
+    )
 
     # -------------------------------------------------------------------------
     # Leyenda
