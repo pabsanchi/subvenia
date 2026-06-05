@@ -75,6 +75,9 @@ class RAGCore:
         texto_query = f"query: {pregunta}"
         vector_query = self.encoder.encode(texto_query).tolist()
 
+        # Fetch extra candidates to compensate for closed convocatorias filtered by $match
+        fetch_limit = max_results * 3
+
         pipeline = [
             {
                 "$vectorSearch": {
@@ -82,8 +85,19 @@ class RAGCore:
                     "path": "embedding",
                     "queryVector": vector_query,
                     "numCandidates": 100,
-                    "limit": max_results
+                    "limit": fetch_limit
                 }
+            },
+            {
+                "$match": {
+                    "$or": [
+                        {"status": {"$ne": "cerrada"}},
+                        {"status": {"$exists": False}}
+                    ]
+                }
+            },
+            {
+                "$limit": max_results
             },
             {
                 "$project": {
