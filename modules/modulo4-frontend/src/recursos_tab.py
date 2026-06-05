@@ -125,24 +125,27 @@ def render() -> None:
             height=min(400, 35 + 35 * len(display_df)),
         )
 
+    map_data = (
+        filtered.dropna(subset=["lat", "lon"])[
+            ["lat", "lon", "color", "descripcion", "titularidad", "categoria"]
+        ]
+        .copy()
+        .reset_index(drop=True)
+    )
+
     with col_map:
         st.markdown("#### Mapa")
-        map_data = (
-            filtered.dropna(subset=["lat", "lon"])[
-                ["lat", "lon", "color", "descripcion", "titularidad", "categoria"]
-            ]
-            .copy()
-            .reset_index(drop=True)
-        )
         if not map_data.empty:
             map_data["color_rgb"] = map_data["color"].apply(_hex_to_rgb)
             layer = pdk.Layer(
                 "ScatterplotLayer",
+                id="recursos-layer",
                 data=map_data,
                 get_position=["lon", "lat"],
                 get_fill_color="color_rgb",
                 get_radius=50,
                 pickable=True,
+                auto_highlight=True,
             )
             view = pdk.ViewState(latitude=39.47, longitude=-0.376, zoom=12)
             tooltip = {
@@ -155,13 +158,38 @@ def render() -> None:
                     "fontSize": "12px",
                 },
             }
-            st.pydeck_chart(
+            event = st.pydeck_chart(
                 pdk.Deck(layers=[layer], initial_view_state=view, tooltip=tooltip),
                 use_container_width=True,
+                on_select="rerun",
+                selection_mode="single-object",
+                key="recursos_mapa",
             )
-            st.caption(f"{len(map_data)} recursos con coordenadas.")
+            st.caption(f"{len(map_data)} recursos con coordenadas. Haz clic en un punto para ver el detalle.")
         else:
+            event = None
             st.info("Sin coordenadas para los recursos seleccionados.")
+
+    # -------------------------------------------------------------------------
+    # Panel de detalle — aparece al hacer clic en un punto del mapa
+    # -------------------------------------------------------------------------
+    selected_objects = []
+    if event and event.selection:
+        selected_objects = (event.selection.get("objects") or {}).get("recursos-layer", [])
+
+    if selected_objects:
+        sel = selected_objects[0]
+        cat_color = CATEGORY_COLORS.get(sel.get("categoria", ""), "#7F8C8D")
+        with st.container(border=True):
+            st.markdown(
+                f"<span style='color:{cat_color};font-size:1.1em'>●</span> "
+                f"**{sel.get('descripcion', '—')}**",
+                unsafe_allow_html=True,
+            )
+            cols = st.columns([2, 1])
+            if sel.get("titularidad"):
+                cols[0].markdown(f"🏛️ {sel['titularidad']}")
+            cols[1].caption(f"📂 {sel.get('categoria', '')}")
 
     # -------------------------------------------------------------------------
     # Leyenda
