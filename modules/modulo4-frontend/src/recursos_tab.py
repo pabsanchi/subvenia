@@ -11,9 +11,15 @@ _mod6 = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../modulo6-r
 if _mod6 not in sys.path:
     sys.path.insert(0, _mod6)
 
+import pydeck as pdk
 import streamlit as st
 import pandas as pd
 from recursos_client import load_all_resources, CATEGORY_COLORS
+
+
+def _hex_to_rgb(hex_color: str) -> list[int]:
+    h = hex_color.lstrip("#")
+    return [int(h[i:i + 2], 16) for i in (0, 2, 4)]
 
 
 # Nivel de módulo: @st.cache_data cachea por identidad de función,
@@ -122,12 +128,37 @@ def render() -> None:
     with col_map:
         st.markdown("#### Mapa")
         map_data = (
-            filtered.dropna(subset=["lat", "lon"])[["lat", "lon", "color"]]
+            filtered.dropna(subset=["lat", "lon"])[
+                ["lat", "lon", "color", "descripcion", "titularidad", "categoria"]
+            ]
             .copy()
             .reset_index(drop=True)
         )
         if not map_data.empty:
-            st.map(map_data, color="color", size=60, zoom=12)
+            map_data["color_rgb"] = map_data["color"].apply(_hex_to_rgb)
+            layer = pdk.Layer(
+                "ScatterplotLayer",
+                data=map_data,
+                get_position=["lon", "lat"],
+                get_fill_color="color_rgb",
+                get_radius=50,
+                pickable=True,
+            )
+            view = pdk.ViewState(latitude=39.47, longitude=-0.376, zoom=12)
+            tooltip = {
+                "html": "<b>{descripcion}</b><br/>{titularidad}<br/><i>{categoria}</i>",
+                "style": {
+                    "backgroundColor": "white",
+                    "color": "#333",
+                    "padding": "8px",
+                    "borderRadius": "4px",
+                    "fontSize": "12px",
+                },
+            }
+            st.pydeck_chart(
+                pdk.Deck(layers=[layer], initial_view_state=view, tooltip=tooltip),
+                use_container_width=True,
+            )
             st.caption(f"{len(map_data)} recursos con coordenadas.")
         else:
             st.info("Sin coordenadas para los recursos seleccionados.")
