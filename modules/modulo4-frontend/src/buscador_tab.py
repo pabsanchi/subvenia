@@ -146,6 +146,7 @@ def render() -> None:
         st.session_state.buscador_error = None
         st.session_state.buscador_hidden = 0
         st.session_state.buscador_filters_used = {}
+        st.session_state.buscador_page = 0
 
     if limpiar:
         for key in SITUACION_LABORAL:
@@ -162,6 +163,7 @@ def render() -> None:
         st.session_state.buscador_results = None
         st.session_state.buscador_error = None
         st.session_state.buscador_hidden = 0
+        st.session_state.buscador_page = 0
         st.rerun()
 
     if buscar:
@@ -194,6 +196,7 @@ def render() -> None:
                 st.session_state.buscador_results = open_results[:60]
                 st.session_state.buscador_hidden = hidden_extra
                 st.session_state.buscador_error = None
+                st.session_state.buscador_page = 0
                 st.session_state.buscador_filters_used = {
                     "situacion_laboral": lab_sel,
                     "situacion_familiar": fam_sel,
@@ -228,10 +231,15 @@ def render() -> None:
         )
         return
 
+    PAGE_SIZE = 20
     n = len(results)
+    total_pages = max(1, (n + PAGE_SIZE - 1) // PAGE_SIZE)
+    page = st.session_state.get("buscador_page", 0)
+    page = min(page, total_pages - 1)
+
     st.success(f"**{n}** {'convocatoria encontrada' if n == 1 else 'convocatorias encontradas'}")
     if n == 60:
-        st.caption("Mostrando los primeros 60 resultados. Añade filtros para acotar.")
+        st.caption("Se muestran hasta 60 resultados. Añade filtros para acotar.")
 
     hidden = st.session_state.get("buscador_hidden", 0)
     if hidden:
@@ -245,9 +253,25 @@ def render() -> None:
     selected_keys = st.session_state.buscador_filters_used
     any_profile = any(selected_keys.values())
 
-    for doc in results:
+    start = page * PAGE_SIZE
+    end = min(start + PAGE_SIZE, n)
+    for doc in results[start:end]:
         tags = get_matching_tags(doc, selected_keys) if any_profile else []
         _render_card(doc, tags)
+
+    if total_pages > 1:
+        st.divider()
+        nav1, nav2, nav3 = st.columns([1, 2, 1])
+        if page > 0 and nav1.button("← Anterior", use_container_width=True):
+            st.session_state.buscador_page = page - 1
+            st.rerun()
+        nav2.markdown(
+            f"<p style='text-align:center;margin:0'>Página {page + 1} de {total_pages}</p>",
+            unsafe_allow_html=True,
+        )
+        if end < n and nav3.button("Siguiente →", use_container_width=True):
+            st.session_state.buscador_page = page + 1
+            st.rerun()
 
     st.divider()
     st.caption(
