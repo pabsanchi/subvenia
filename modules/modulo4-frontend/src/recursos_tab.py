@@ -22,11 +22,12 @@ def _hex_to_rgb(hex_color: str) -> list[int]:
     return [int(h[i:i + 2], 16) for i in (0, 2, 4)]
 
 
-# Nivel de módulo: @st.cache_data cachea por identidad de función,
-# definir aquí garantiza que el caché se reutilice entre re-renders.
 @st.cache_data(ttl=3600, show_spinner=False)
 def _get_resources() -> pd.DataFrame:
     return load_all_resources()
+
+
+_MAX_LIST = 200
 
 
 def render() -> None:
@@ -36,7 +37,6 @@ def render() -> None:
         "Ayuntamiento de Valencia. Selecciona un colectivo para ver los recursos disponibles."
     )
 
-    # Cargar datos (siempre desde caché tras la primera llamada)
     df = _get_resources()
 
     if df.empty:
@@ -45,9 +45,6 @@ def render() -> None:
 
     available_cats = sorted(df["categoria"].unique().tolist())
 
-    # -------------------------------------------------------------------------
-    # Filtros — multiselect sin default: empieza vacío
-    # -------------------------------------------------------------------------
     col_search, col_cats = st.columns([2, 2])
     with col_cats:
         selected_cats = st.multiselect(
@@ -64,11 +61,6 @@ def render() -> None:
             key="recursos_search",
         )
 
-    # -------------------------------------------------------------------------
-    # Estado vacío: no renderizar nada hasta que el usuario elija algo.
-    # Esto es crítico para el rendimiento: evita renderizar cientos de
-    # st.container() en cada re-render de la app.
-    # -------------------------------------------------------------------------
     if not selected_cats and not search.strip():
         st.info(
             "Selecciona al menos un colectivo (o escribe en el buscador) "
@@ -82,9 +74,6 @@ def render() -> None:
         )
         return
 
-    # -------------------------------------------------------------------------
-    # Aplicar filtros
-    # -------------------------------------------------------------------------
     if selected_cats:
         filtered = df[df["categoria"].isin(selected_cats)].copy()
     else:
@@ -98,16 +87,36 @@ def render() -> None:
         filtered = filtered[mask]
 
     filtered = filtered.reset_index(drop=True)
-    total_filtered = len(filtered)
 
-    st.markdown(f"**{total_filtered}** recursos encontrados")
+    st.markdown(f"**{len(filtered)}** recursos encontrados")
 
     if filtered.empty:
         st.info("No hay recursos que coincidan con los filtros seleccionados.")
         return
 
     # -------------------------------------------------------------------------
-    # Layout: mapa (izquierda, 2/3) + detalle (derecha, 1/3)
+    # Estado de selección unificado
+    #
+    # rec_sel:     recurso actualmente mostrado en el panel de detalle.
+    #              Lo establece cualquier interacción: botón de lista o clic en mapa.
+    #              Formato: {lat, lon, descripcion, titularidad, categoria, source}
+    #
+    # rec_zoom_id: sufijo del key del mapa. Solo cambia al pulsar un botón de lista,
+    #              lo que fuerza a pydeck a re-inicializar con el nuevo initial_view_state.
+    #              Los clics en el mapa no modifican este valor: el mapa no salta.
+    # -------------------------------------------------------------------------
+    rec_sel = st.session_state.get("rec_sel")
+    rec_zoom_id = st.session_state.get("rec_zoom_id", "0")
+
+    if rec_sel and rec_sel.get("source") == "list" and rec_sel.get("lat") and rec_sel.get("lon"):
+        view = pdk.ViewState(latitude=rec_sel["lat"], longitude=rec_sel["lon"], zoom=14)
+    else:
+        view = pdk.ViewState(latitude=39.47, longitude=-0.376, zoom=12)
+
+    map_key = f"recursos_mapa_{rec_zoom_id}"
+
+    # -------------------------------------------------------------------------
+    # Layout: mapa (izq, 2/3) + detalle (der, 1/3)
     # -------------------------------------------------------------------------
     map_data = (
         filtered.dropna(subset=["lat", "lon"])[
@@ -134,7 +143,6 @@ def render() -> None:
                 pickable=True,
                 auto_highlight=True,
             )
-            view = pdk.ViewState(latitude=39.47, longitude=-0.376, zoom=12)
             tooltip = {
                 "html": "<b>{descripcion}</b><br/>{titularidad}<br/><i>{categoria}</i>",
                 "style": {
@@ -151,58 +159,99 @@ def render() -> None:
                 height=420,
                 on_select="rerun",
                 selection_mode="single-object",
-                key="recursos_mapa",
+                key=map_key,
             )
             st.caption(f"{len(map_data)} recursos con coordenadas.")
         else:
             st.info("Sin coordenadas para los recursos seleccionados.")
 
-    # -------------------------------------------------------------------------
-    # Panel de detalle — siempre visible a la derecha del mapa
-    # -------------------------------------------------------------------------
+    # Clic en el mapa → actualizar rec_sel (sin tocar rec_zoom_id: el mapa no salta)
     selected_objects = []
     if event and event.selection:
         selected_objects = (event.selection.get("objects") or {}).get("recursos-layer", [])
 
+    if selected_objects:
+        obj = selected_objects[0]
+        new_sel = {
+            "lat": obj.get("lat"),
+            "lon": obj.get("lon"),
+            "descripcion": obj.get("descripcion", "—"),
+            "titularidad": obj.get("titularidad"),
+            "categoria": obj.get("categoria", ""),
+            "source": "map",
+        }
+        st.session_state["rec_sel"] = new_sel
+        rec_sel = new_sel
+
+    # -------------------------------------------------------------------------
+    # Panel de detalle
+    # -------------------------------------------------------------------------
     with col_detail:
         st.markdown("#### Detalle")
-        if selected_objects:
-            sel = selected_objects[0]
-            cat_color = CATEGORY_COLORS.get(sel.get("categoria", ""), "#7F8C8D")
+        if rec_sel:
+            cat_color = CATEGORY_COLORS.get(rec_sel.get("categoria", ""), "#7F8C8D")
             with st.container(border=True):
                 st.markdown('<div class="recurso-card-marker"></div>', unsafe_allow_html=True)
                 st.markdown(
                     f"<span style='color:{cat_color};font-size:1.1em'>●</span> "
-                    f"**{sel.get('descripcion', '—')}**",
+                    f"**{rec_sel.get('descripcion', '—')}**",
                     unsafe_allow_html=True,
                 )
-                if sel.get("titularidad"):
-                    st.markdown(f"🏛️ {sel['titularidad']}")
-                st.caption(f"📂 {sel.get('categoria', '')}")
+                tit = rec_sel.get("titularidad")
+                if tit and pd.notna(tit):
+                    st.markdown(f"🏛️ {tit}")
+                st.caption(f"📂 {rec_sel.get('categoria', '')}")
         else:
             st.markdown(
                 "<div style='color:#999;padding:24px 0;text-align:center'>"
-                "Haz clic en un punto del mapa para ver sus detalles."
+                "Haz clic en un punto del mapa o en un elemento del listado para ver sus detalles."
                 "</div>",
                 unsafe_allow_html=True,
             )
 
     # -------------------------------------------------------------------------
-    # Listado completo — debajo del mapa, a ancho completo
+    # Listado — botones en contenedor desplazable
+    #
+    # Los botones no tienen estado visual persistido: al hacer clic actualizan
+    # rec_sel y rec_zoom_id, luego hacen rerun. No hay "fila marcada" residual.
     # -------------------------------------------------------------------------
     st.divider()
     st.markdown("#### Listado")
-    # Usar dataframe en lugar de N st.container() individuales.
-    # Renderizar cientos de containers bloquea la UI en cada re-render.
-    display_df = filtered[["categoria", "descripcion", "titularidad"]].copy()
-    display_df.columns = ["Colectivo", "Recurso", "Titular"]
-    display_df["Titular"] = display_df["Titular"].fillna("—")
-    st.dataframe(
-        display_df,
-        use_container_width=True,
-        hide_index=True,
-        height=min(400, 35 + 35 * len(display_df)),
-    )
+
+    list_df = filtered[["descripcion", "titularidad", "categoria", "lat", "lon"]].copy()
+    if len(list_df) > _MAX_LIST:
+        st.caption(
+            f"Mostrando los primeros {_MAX_LIST} resultados. "
+            "Usa el buscador para filtrar."
+        )
+        list_df = list_df.head(_MAX_LIST)
+
+    with st.container(height=min(420, 20 + 68 * len(list_df))):
+        for idx, row in list_df.iterrows():
+            desc = row["descripcion"]
+            tit = row["titularidad"] if pd.notna(row["titularidad"]) else ""
+            cat = row["categoria"] if pd.notna(row["categoria"]) else ""
+
+            col_text, col_btn = st.columns([10, 1])
+            with col_text:
+                second_line = tit if tit else cat
+                st.markdown(f"**{desc}**  \n{second_line}" if second_line else f"**{desc}**")
+            with col_btn:
+                clicked = st.button("→", key=f"rec_btn_{idx}", help="Ver en el mapa")
+
+            if clicked:
+                new_sel = {
+                    "lat": row["lat"] if pd.notna(row["lat"]) else None,
+                    "lon": row["lon"] if pd.notna(row["lon"]) else None,
+                    "descripcion": desc,
+                    "titularidad": tit or None,
+                    "categoria": cat,
+                    "source": "list",
+                }
+                st.session_state["rec_sel"] = new_sel
+                if new_sel["lat"] is not None:
+                    st.session_state["rec_zoom_id"] = str(idx)
+                st.rerun()
 
     # -------------------------------------------------------------------------
     # Leyenda
