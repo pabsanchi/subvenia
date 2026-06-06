@@ -81,8 +81,10 @@ Asistente despues de una consulta:
 **Cómo funciona:** El usuario selecciona su perfil (situación laboral, familiar, colectivo, vulnerabilidad) y aplica filtros adicionales (tipo de ayuda, ámbito geográfico). Muestra las convocatorias abiertas de la BDNS que coinciden, paginadas de 20 en 20.  
 **Fuente de datos:** BDNS (vía MongoDB Atlas, Módulo 5)
 
+Panel de filtros:
 ![Buscador — panel de filtros](<docs/imagenes/3 Buscador Filtros.png>)
 
+Ejemplos de resultados:
 ![Buscador — resultados](<docs/imagenes/2.5 Buscador resultados.png>)
 
 ### Recursos sociales
