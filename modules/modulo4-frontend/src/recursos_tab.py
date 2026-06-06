@@ -15,6 +15,7 @@ import pydeck as pdk
 import streamlit as st
 import pandas as pd
 from recursos_client import load_all_resources, CATEGORY_COLORS
+from _texts import T
 
 
 def _hex_to_rgb(hex_color: str) -> list[int]:
@@ -31,16 +32,13 @@ _MAX_LIST = 200
 
 
 def render() -> None:
-    st.markdown("### 🗺️ Recursos Sociales en Valencia")
-    st.markdown(
-        "Directorio de centros, asociaciones y servicios sociales del "
-        "Ayuntamiento de Valencia. Selecciona un colectivo para ver los recursos disponibles."
-    )
+    st.markdown(T["recursos"]["titulo"])
+    st.markdown(T["recursos"]["subtitulo"])
 
     df = _get_resources()
 
     if df.empty:
-        st.error("No se pudieron cargar los datos del portal opendata.vlci.valencia.es.")
+        st.error(T["recursos"]["error_carga"])
         return
 
     available_cats = sorted(df["categoria"].unique().tolist())
@@ -48,30 +46,23 @@ def render() -> None:
     col_search, col_cats = st.columns([2, 2])
     with col_cats:
         selected_cats = st.multiselect(
-            "Colectivo",
+            T["recursos"]["filtro_colectivo_label"],
             options=available_cats,
             default=[],
-            placeholder="Selecciona uno o más colectivos...",
+            placeholder=T["recursos"]["filtro_colectivo_placeholder"],
             key="recursos_cats",
         )
     with col_search:
         search = st.text_input(
-            "🔎 Buscar por nombre o entidad",
-            placeholder="ej: residencia, asociación, ONCE...",
+            T["recursos"]["filtro_buscar_label"],
+            placeholder=T["recursos"]["filtro_buscar_placeholder"],
             key="recursos_search",
         )
 
     if not selected_cats and not search.strip():
-        st.info(
-            "Selecciona al menos un colectivo (o escribe en el buscador) "
-            "para ver los recursos disponibles."
-        )
+        st.info(T["recursos"]["info_sin_seleccion"])
         st.divider()
-        st.caption(
-            "Fuente: [Portal de Datos Abiertos del Ayuntament de València]"
-            "(https://opendata.vlci.valencia.es) · "
-            "Categoría: Sociedad y Bienestar · Licencia CC BY 4.0"
-        )
+        st.caption(T["recursos"]["footer"])
         return
 
     if selected_cats:
@@ -88,10 +79,10 @@ def render() -> None:
 
     filtered = filtered.reset_index(drop=True)
 
-    st.markdown(f"**{len(filtered)}** recursos encontrados")
+    st.markdown(T["recursos"]["total_resultados"].format(n=len(filtered)))
 
     if filtered.empty:
-        st.info("No hay recursos que coincidan con los filtros seleccionados.")
+        st.info(T["recursos"]["info_sin_resultados"])
         return
 
     # -------------------------------------------------------------------------
@@ -130,7 +121,7 @@ def render() -> None:
     col_map, col_detail = st.columns([2, 1], gap="medium")
 
     with col_map:
-        st.markdown("#### Mapa")
+        st.markdown(T["recursos"]["seccion_mapa"])
         if not map_data.empty:
             map_data["color_rgb"] = map_data["color"].apply(_hex_to_rgb)
             layer = pdk.Layer(
@@ -161,9 +152,9 @@ def render() -> None:
                 selection_mode="single-object",
                 key=map_key,
             )
-            st.caption(f"{len(map_data)} recursos con coordenadas.")
+            st.caption(T["recursos"]["mapa_caption"].format(n=len(map_data)))
         else:
-            st.info("Sin coordenadas para los recursos seleccionados.")
+            st.info(T["recursos"]["mapa_sin_coordenadas"])
 
     # Clic en el mapa → actualizar rec_sel (sin tocar rec_zoom_id: el mapa no salta)
     selected_objects = []
@@ -187,7 +178,7 @@ def render() -> None:
     # Panel de detalle
     # -------------------------------------------------------------------------
     with col_detail:
-        st.markdown("#### Detalle")
+        st.markdown(T["recursos"]["seccion_detalle"])
         if rec_sel:
             cat_color = CATEGORY_COLORS.get(rec_sel.get("categoria", ""), "#7F8C8D")
             with st.container(border=True):
@@ -203,9 +194,9 @@ def render() -> None:
                 st.caption(f"📂 {rec_sel.get('categoria', '')}")
         else:
             st.markdown(
-                "<div style='color:#999;padding:24px 0;text-align:center'>"
-                "Haz clic en un punto del mapa o en un elemento del listado para ver sus detalles."
-                "</div>",
+                f"<div style='color:#999;padding:24px 0;text-align:center'>"
+                f"{T['recursos']['detalle_vacio']}"
+                f"</div>",
                 unsafe_allow_html=True,
             )
 
@@ -216,14 +207,11 @@ def render() -> None:
     # rec_sel y rec_zoom_id, luego hacen rerun. No hay "fila marcada" residual.
     # -------------------------------------------------------------------------
     st.divider()
-    st.markdown("#### Listado")
+    st.markdown(T["recursos"]["seccion_listado"])
 
     list_df = filtered[["descripcion", "titularidad", "categoria", "lat", "lon"]].copy()
     if len(list_df) > _MAX_LIST:
-        st.caption(
-            f"Mostrando los primeros {_MAX_LIST} resultados. "
-            "Usa el buscador para filtrar."
-        )
+        st.caption(T["recursos"]["listado_limite"].format(max=_MAX_LIST))
         list_df = list_df.head(_MAX_LIST)
 
     with st.container(height=min(420, 20 + 68 * len(list_df))):
@@ -238,7 +226,7 @@ def render() -> None:
                 second_line = tit if tit else cat
                 st.markdown(f"**{desc}**  \n{second_line}" if second_line else f"**{desc}**")
             with col_btn:
-                clicked = st.button("→", key=f"rec_btn_{idx}", help="Ver en el mapa")
+                clicked = st.button("→", key=f"rec_btn_{idx}", help=T["recursos"]["listado_btn_tooltip"])
 
             if clicked:
                 new_sel = {
@@ -259,7 +247,7 @@ def render() -> None:
     # -------------------------------------------------------------------------
     if len(selected_cats) > 1:
         st.divider()
-        st.markdown("**Leyenda**")
+        st.markdown(T["recursos"]["leyenda"])
         legend_cols = st.columns(min(len(selected_cats), 4))
         for i, cat in enumerate(sorted(selected_cats)):
             color = CATEGORY_COLORS.get(cat, "#7F8C8D")
@@ -270,8 +258,4 @@ def render() -> None:
                 )
 
     st.divider()
-    st.caption(
-        "Fuente: [Portal de Datos Abiertos del Ayuntament de València]"
-        "(https://opendata.vlci.valencia.es) · "
-        "Categoría: Sociedad y Bienestar · Licencia CC BY 4.0"
-    )
+    st.caption(T["recursos"]["footer"])

@@ -6,15 +6,10 @@ if _src not in sys.path:
     sys.path.insert(0, _src)
 
 import streamlit as st
-import _styles
+from _texts import T
 import recursos_tab
 
-st.set_page_config(
-    page_title="Recursos sociales — SubvenIA",
-    page_icon="🗺️",
-    layout="wide",
-)
+# set_page_config y _styles.apply() se llaman en app.py (una sola vez por carga)
 
-_styles.apply()
-st.page_link("app.py", label="← Volver al inicio")
+st.page_link("pages/0_Inicio.py", label=T["comun"]["volver_inicio"])
 recursos_tab.render()

@@ -9,6 +9,7 @@ if _mod5 not in sys.path:
     sys.path.insert(0, _mod5)
 
 import streamlit as st
+from _texts import T
 from buscador_client import (
     BDNS_PORTAL_URL,
     AID_TYPES,
@@ -29,7 +30,6 @@ _AID_ICONS = {
     "deduccion_fiscal": "📋", "microcredito": "💳",
 }
 
-# (bg, fg) por estado para el badge HTML
 _STATUS_BADGE_COLORS = {
     "abierta":      ("#d4edda", "#155724"),
     "proximamente": ("#fff3cd", "#856404"),
@@ -72,12 +72,11 @@ def _render_card(doc: dict, matching_tags: list[str]) -> None:
 
     with st.container(border=True):
         st.markdown('<div class="ayuda-card-marker"></div>', unsafe_allow_html=True)
-        st.markdown(f"**{doc.get('descripcion', 'Sin descripción').strip()}**")
+        st.markdown(f"**{doc.get('descripcion', T['buscador']['card_sin_descripcion']).strip()}**")
 
         if organismo:
             st.markdown(f"<span style='font-size:0.9em;color:#555'>🏛️ {organismo}</span>", unsafe_allow_html=True)
 
-        # Fila de badges: estado + tipo de ayuda + ámbito geográfico
         bg, fg = _STATUS_BADGE_COLORS.get(status_key, ("#e2e3e5", "#383d41"))
         row = _badge(status_label, bg, fg)
         if aid_type:
@@ -87,80 +86,71 @@ def _render_card(doc: dict, matching_tags: list[str]) -> None:
         st.markdown(row, unsafe_allow_html=True)
 
         if deadline and deadline not in ("desconocido", ""):
-            st.caption(f"📅 Plazo: {deadline}")
+            st.caption(T["buscador"]["card_plazo"].format(deadline=deadline))
 
-        # Tags de coincidencia como chips verdes
         if matching_tags:
             chips = "".join(_badge(f"✓ {t}", "#e8f5e9", "#2e7d32") for t in matching_tags)
             st.markdown(chips, unsafe_allow_html=True)
 
         if other_conditions:
-            with st.expander("ℹ️ Condiciones adicionales"):
+            with st.expander(T["buscador"]["card_condiciones"]):
                 st.write(other_conditions)
 
         if n_conv:
             st.caption(
-                f"Nº de convocatoria: **{n_conv}** · "
-                f"[Ver en el portal oficial ↗]({BDNS_PORTAL_URL})"
+                T["buscador"]["card_numero_conv"].format(n_conv=n_conv)
+                + f"[{T['buscador']['card_enlace_portal']}]({BDNS_PORTAL_URL})"
             )
 
 
 def render() -> None:
-    st.markdown("### 🔍 Buscador de ayudas")
-    st.markdown(
-        "Marca las opciones que describen tu situación y te mostraremos "
-        "las ayudas abiertas que podrían corresponderte."
-    )
+    st.markdown(T["buscador"]["titulo"])
+    st.markdown(T["buscador"]["subtitulo"])
     st.divider()
 
-    # -------------------------------------------------------------------------
-    # Filtros
-    # -------------------------------------------------------------------------
-    with st.expander("🎛️ Filtros de perfil", expanded=True):
+    with st.expander(T["buscador"]["filtros_expander"], expanded=True):
         c1, c2, c3, c4 = st.columns(4)
         with c1:
-            lab_sel = _checkbox_group("Situación laboral", SITUACION_LABORAL, "lab")
+            lab_sel = _checkbox_group(T["buscador"]["filtro_laboral"], SITUACION_LABORAL, "lab")
         with c2:
-            fam_sel = _checkbox_group("Situación familiar", SITUACION_FAMILIAR, "fam")
+            fam_sel = _checkbox_group(T["buscador"]["filtro_familiar"], SITUACION_FAMILIAR, "fam")
         with c3:
-            vul_sel = _checkbox_group("Vulnerabilidad", VULNERABILIDAD, "vul")
+            vul_sel = _checkbox_group(T["buscador"]["filtro_vulnerabilidad"], VULNERABILIDAD, "vul")
         with c4:
-            col_sel = _checkbox_group("Colectivo", COLECTIVOS, "col")
+            col_sel = _checkbox_group(T["buscador"]["filtro_colectivo"], COLECTIVOS, "col")
 
         st.divider()
         cf1, cf2, cf3 = st.columns([2, 1, 1])
         with cf1:
             texto_sel = st.text_input(
-                "🔎 Palabras clave en el título",
-                placeholder="ej: alquiler, beca, energía...",
+                T["buscador"]["filtro_palabras_label"],
+                placeholder=T["buscador"]["filtro_palabras_placeholder"],
                 key="buscador_texto",
             )
         with cf2:
-            aid_opts = ["Todos"] + list(AID_TYPES.keys())
-            aid_disp = ["Todos"] + list(AID_TYPES.values())
+            todos = T["buscador"]["filtro_todos"]
+            aid_opts = [todos] + list(AID_TYPES.keys())
+            aid_disp = [todos] + list(AID_TYPES.values())
             aid_idx = st.selectbox(
-                "Tipo de ayuda", range(len(aid_opts)),
+                T["buscador"]["filtro_tipo_ayuda"], range(len(aid_opts)),
                 format_func=lambda i: aid_disp[i], key="buscador_aid",
             )
             aid_sel = aid_opts[aid_idx] if aid_idx > 0 else None
         with cf3:
-            geo_opts = ["Todos"] + list(GEO_LEVELS.keys())
-            geo_disp = ["Todos"] + list(GEO_LEVELS.values())
+            geo_opts = [todos] + list(GEO_LEVELS.keys())
+            geo_disp = [todos] + list(GEO_LEVELS.values())
             geo_idx = st.selectbox(
-                "Ámbito", range(len(geo_opts)),
+                T["buscador"]["filtro_ambito"], range(len(geo_opts)),
                 format_func=lambda i: geo_disp[i], key="buscador_geo",
             )
             geo_sel = geo_opts[geo_idx] if geo_idx > 0 else None
 
     col_btn, col_clear = st.columns([2, 1])
     with col_btn:
-        buscar = st.button("🔍 Buscar ayudas", type="primary", use_container_width=True)
+        buscar = st.button(T["buscador"]["btn_buscar"], type="primary", use_container_width=True)
     with col_clear:
-        limpiar = st.button("✕ Limpiar filtros", use_container_width=True)
+        limpiar = st.button(T["buscador"]["btn_limpiar"], use_container_width=True)
 
-    # -------------------------------------------------------------------------
-    # Session state para persistir resultados entre re-renders
-    # -------------------------------------------------------------------------
     if "buscador_results" not in st.session_state:
         st.session_state.buscador_results = None
         st.session_state.buscador_error = None
@@ -187,10 +177,8 @@ def render() -> None:
         st.rerun()
 
     if buscar:
-        with st.spinner("Consultando base de datos..."):
+        with st.spinner(T["buscador"]["spinner_buscar"]):
             try:
-                # Pedimos más resultados de los que mostraremos para absorber
-                # los que el post-filtrado UI descarte (status=null con deadline pasado).
                 raw = buscar_convocatorias(
                     situacion_laboral=lab_sel or None,
                     situacion_familiar=fam_sel or None,
@@ -202,9 +190,6 @@ def render() -> None:
                     max_results=80,
                     exclude_closed=True,
                 )
-
-                # Segunda capa: filtrar docs con status=null cuyo deadline
-                # ya pasó (get_status() los deriva como "cerrada").
                 open_results = []
                 hidden_extra = 0
                 for doc in raw:
@@ -228,25 +213,19 @@ def render() -> None:
                 st.session_state.buscador_results = None
                 st.session_state.buscador_hidden = 0
 
-    # -------------------------------------------------------------------------
-    # Mostrar resultados desde session_state
-    # -------------------------------------------------------------------------
     results = st.session_state.buscador_results
     error = st.session_state.buscador_error
 
     if error:
-        st.error("No hemos podido realizar la búsqueda. Inténtalo de nuevo en unos instantes.")
+        st.error(T["buscador"]["error_busqueda"])
         return
 
     if results is None:
-        st.info("Marca las opciones que describen tu situación y pulsa **Buscar ayudas**.")
+        st.info(T["buscador"]["info_inicial"])
         return
 
     if not results:
-        st.warning(
-            "No hemos encontrado ayudas con esos criterios. "
-            "Prueba a marcar menos opciones para ampliar la búsqueda."
-        )
+        st.warning(T["buscador"]["warning_sin_resultados"])
         return
 
     PAGE_SIZE = 20
@@ -255,18 +234,17 @@ def render() -> None:
     page = st.session_state.get("buscador_page", 0)
     page = min(page, total_pages - 1)
 
-    st.success(f"**{n}** {'convocatoria encontrada' if n == 1 else 'convocatorias encontradas'}")
+    noun = T["buscador"]["resultados_1"] if n == 1 else T["buscador"]["resultados_n"]
+    st.success(f"**{n}** {noun}")
     if n == 60:
-        st.caption("Mostrando los primeros 60 resultados. Añade más filtros para afinar.")
+        st.caption(T["buscador"]["caption_limite"])
 
     hidden = st.session_state.get("buscador_hidden", 0)
     if hidden:
-        noun = "ayuda cerrada" if hidden == 1 else "ayudas cerradas"
-        st.info(
-            f"ℹ️ También hay **{hidden}** {noun} que coincide"
-            f"{'n' if hidden > 1 else ''} con tu búsqueda, "
-            f"pero {'están' if hidden > 1 else 'está'} fuera de plazo y no se {'muestran' if hidden > 1 else 'muestra'}."
-        )
+        noun_h = T["buscador"]["ocultas_noun_1"] if hidden == 1 else T["buscador"]["ocultas_noun_n"]
+        coinc  = T["buscador"]["ocultas_coinc_1"] if hidden == 1 else T["buscador"]["ocultas_coinc_n"]
+        plazo  = T["buscador"]["ocultas_plazo_1"] if hidden == 1 else T["buscador"]["ocultas_plazo_n"]
+        st.info(f"ℹ️ También hay **{hidden}** {noun_h} que {coinc} con tu búsqueda, pero {plazo}.")
 
     selected_keys = st.session_state.buscador_filters_used
     any_profile = any(selected_keys.values())
@@ -280,19 +258,18 @@ def render() -> None:
     if total_pages > 1:
         st.divider()
         nav1, nav2, nav3 = st.columns([1, 2, 1])
-        if page > 0 and nav1.button("← Anterior", use_container_width=True):
+        if page > 0 and nav1.button(T["buscador"]["pag_anterior"], use_container_width=True):
             st.session_state.buscador_page = page - 1
             st.rerun()
         nav2.markdown(
-            f"<p style='text-align:center;margin:0'>Página {page + 1} de {total_pages}</p>",
+            f"<p style='text-align:center;margin:0'>"
+            f"{T['buscador']['pag_info'].format(page=page + 1, total=total_pages)}"
+            f"</p>",
             unsafe_allow_html=True,
         )
-        if end < n and nav3.button("Siguiente →", use_container_width=True):
+        if end < n and nav3.button(T["buscador"]["pag_siguiente"], use_container_width=True):
             st.session_state.buscador_page = page + 1
             st.rerun()
 
     st.divider()
-    st.caption(
-        f"Información extraída de la [Base de Datos Nacional de Subvenciones]({BDNS_PORTAL_URL}), "
-        "el registro oficial de ayudas públicas del Estado."
-    )
+    st.caption(T["buscador"]["footer"].format(url=BDNS_PORTAL_URL))
