@@ -157,6 +157,58 @@ Estructura multi-página con navegación centralizada (`st.navigation()`). Tema 
 - Tarjetas con badge de estado coloreado (verde/amarillo/azul), organismo prominente, chips de colectivos coincidentes y referencia BDNS.
 - Paginación de 20 resultados por página con botones Anterior/Siguiente.
 
+---
+
+## 🔧 Solución de problemas conocidos
+
+### El asistente responde de forma genérica sin usar convocatorias
+
+**Síntoma:** El asistente ignora la pregunta y responde con frases genéricas del tipo "no tengo información suficiente" o similar, sin mencionar ninguna convocatoria concreta.
+
+**Causa más probable:** El índice de búsqueda vectorial `autoembed_index` ha desaparecido del cluster de MongoDB Atlas. Ocurre en clusters gratuitos por inactividad prolongada o cambios en el cluster. Los documentos y embeddings quedan intactos — solo falta el índice.
+
+**Diagnóstico:**
+```python
+source venv/bin/activate
+python -c "
+from pymongo import MongoClient
+from dotenv import load_dotenv
+import os
+load_dotenv('.env')
+col = MongoClient(os.getenv('MONGO_URI'))['subvenia']['convocatorias']
+print('Índices de búsqueda:', list(col.list_search_indexes()))
+# Si devuelve [] → el índice ha desaparecido
+"
+```
+
+**Solución** (no requiere la UI de Atlas, se ejecuta desde terminal):
+```python
+python -c "
+from pymongo import MongoClient
+from dotenv import load_dotenv
+import os, time
+load_dotenv('.env')
+col = MongoClient(os.getenv('MONGO_URI'))['subvenia']['convocatorias']
+col.create_search_index({
+    'name': 'autoembed_index',
+    'type': 'vectorSearch',
+    'definition': {
+        'fields': [{'type': 'vector', 'path': 'embedding', 'numDimensions': 768, 'similarity': 'cosine'}]
+    }
+})
+print('Creando índice...')
+while True:
+    idx = list(col.list_search_indexes())
+    if idx and idx[0]['status'] == 'READY':
+        print('Índice READY — reinicia la app')
+        break
+    print('.', end='', flush=True)
+    time.sleep(5)
+"
+```
+
+---
+
 ### Módulo 6: Mapa de recursos sociales (`modules/modulo6-recursos/`)
 **Estado:** Operativo
 

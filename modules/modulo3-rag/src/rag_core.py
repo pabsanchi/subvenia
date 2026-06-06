@@ -27,7 +27,7 @@ MODEL_NAME = "intfloat/multilingual-e5-base"
 # Elasticsearch devuelve scores coseno normalizados entre 0 y 1.
 # 0.75 es un buen equilibrio: captura resultados genuinamente relevantes
 # sin devolver ruido. Ajustar según la experiencia del usuario.
-MIN_SIMILARITY_SCORE = 0.85
+MIN_SIMILARITY_SCORE = 0.75
 
 # URL del buscador general de la BDNS (el portal no soporta deep links directos)
 BDNS_SEARCH_URL = "https://www.pap.hacienda.gob.es/bdnstrans/GE/es/convocatorias"
@@ -75,9 +75,6 @@ class RAGCore:
         texto_query = f"query: {pregunta}"
         vector_query = self.encoder.encode(texto_query).tolist()
 
-        # Fetch extra candidates to compensate for closed convocatorias filtered by $match
-        fetch_limit = max_results * 3
-
         pipeline = [
             {
                 "$vectorSearch": {
@@ -85,19 +82,8 @@ class RAGCore:
                     "path": "embedding",
                     "queryVector": vector_query,
                     "numCandidates": 100,
-                    "limit": fetch_limit
+                    "limit": max_results
                 }
-            },
-            {
-                "$match": {
-                    "$or": [
-                        {"status": {"$ne": "cerrada"}},
-                        {"status": {"$exists": False}}
-                    ]
-                }
-            },
-            {
-                "$limit": max_results
             },
             {
                 "$project": {
