@@ -55,7 +55,7 @@ python modules/modulo2-db/src/ingest.py
 ```
 
 > [!TIP]
-> Para detener: `./stop_frontEnd.sh`
+> Para detener: `./stop_frontEnd.sh` o simplemente `control + c`
 
 ---
 
