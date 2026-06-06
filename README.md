@@ -63,20 +63,31 @@ python modules/modulo2-db/src/ingest.py
 
 SubvenIA ofrece tres herramientas accesibles desde la barra lateral de navegación:
 
+![Pantalla de inicio](<docs/imagenes/0 Pantalla de inicio .png>)
+
 ### Asistente de ayudas
 **Para:** Usuarios con poca experiencia digital (personas mayores, etc.)  
 **Cómo funciona:** El usuario describe su situación en lenguaje natural y recibe una respuesta personalizada. Sin necesidad de conocer categorías ni filtros.  
 **Fuente de datos:** BDNS (vía MongoDB Atlas + Ollama/Llama3)
+
+![Asistente — esperando consulta](<docs/imagenes/1 Rag antes de responder.png>)
+![Asistente — respuesta generada](<docs/imagenes/2 Rag resultado.png>)
 
 ### Buscador de ayudas
 **Para:** Usuarios que prefieren explorar con filtros  
 **Cómo funciona:** El usuario selecciona su perfil (situación laboral, familiar, colectivo, vulnerabilidad) y aplica filtros adicionales (tipo de ayuda, ámbito geográfico). Muestra las convocatorias abiertas de la BDNS que coinciden, paginadas de 20 en 20.  
 **Fuente de datos:** BDNS (vía MongoDB Atlas, Módulo 5)
 
+![Buscador — panel de filtros](<docs/imagenes/3 Buscador Filtros.png>)
+
+![Buscador — resultados](<docs/imagenes/2.5 Buscador resultados.png>)
+
 ### Recursos sociales
 **Para:** Usuarios de cualquier perfil que necesiten saber dónde ir en persona  
 **Cómo funciona:** Mapa interactivo y listado de centros, asociaciones y servicios sociales del Ayuntamiento de Valencia, filtrable por colectivo. Clic en un punto del mapa o en un botón del listado para ver los detalles y centrar el mapa.  
 **Fuente de datos:** Portal de Datos Abiertos del Ayuntament de València (`opendata.vlci.valencia.es`), categoría Sociedad y Bienestar, licencia CC BY 4.0
+
+![Mapa de recursos sociales](<docs/imagenes/4 Imagen mapa recursos.png>)
 
 ---
 
