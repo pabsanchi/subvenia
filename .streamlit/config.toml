@@ -7,6 +7,7 @@ textColor                = "#2C2416"   # carbón cálido — texto principal
 pageBackgroundColor      = "#EDD9C0"   # arena cálida — fondo de página (aplicado via CSS en _styles.py)
 containerBackgroundColor = "#f7ceceff"   # blanco — tarjetas, panel de detalle, cards de inicio
 inputBackgroundColor     = "#FFFFFF"   # blanco — campos de texto, inputs
+listContainerBgColor     = "#85c9ebff"
 
 [browser]
 gatherUsageStats = false

@@ -39,6 +39,7 @@ def apply():
     container_bg = load_config_val("containerBackgroundColor", "#FFFFFF")
     input_bg = load_config_val("inputBackgroundColor", "#FFFFFF")
     secondary_bg = load_config_val("secondaryBackgroundColor", "#F5EAD8")
+    listContainerBgColor = load_config_val("listContainerBgColor", "#85c9ebff")
 
     st.markdown(f"""
     <style>
@@ -112,7 +113,7 @@ def apply():
        Selector: stLayoutWrapper hijo directo del bloque scrollable. */
     div[data-testid="stVerticalBlock"][overflow="auto"]:has(.rec-lista-marker)
     > div[data-testid="stLayoutWrapper"] {{
-        background-color: {input_bg} !important;
+        background-color: {listContainerBgColor} !important;
         border-radius: 6px !important;
         padding: 4px 8px !important;
         margin-bottom: 4px !important;
