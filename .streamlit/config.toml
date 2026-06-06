@@ -5,9 +5,10 @@ backgroundColor          = "#ffffff"   # blanco — valor base de Streamlit (no 
 secondaryBackgroundColor = "#F5EAD8"   # arena clara — sidebar, expanders nativos de Streamlit
 textColor                = "#2C2416"   # carbón cálido — texto principal
 pageBackgroundColor      = "#EDD9C0"   # arena cálida — fondo de página (aplicado via CSS en _styles.py)
-containerBackgroundColor = "#f7ceceff"   # blanco — tarjetas, panel de detalle, cards de inicio
+containerBackgroundColor = "#FBF4E8"   # crema cálida — tarjetas, panel de detalle, cards de inicio
 inputBackgroundColor     = "#FFFFFF"   # blanco — campos de texto, inputs
-listContainerBgColor     = "#85c9ebff"
+listContainerBgColor     = "#FDFAF4"   # blanco cálido — ítems del listado de recursos
 
 [browser]
 gatherUsageStats = false
+ 

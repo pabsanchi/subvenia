@@ -64,7 +64,7 @@ T: dict = {
 
         # ── Tarjeta 1: Asistente conversacional ──────────────────────────────
         # → st.markdown() dentro de st.container(border=True)
-        "card_asistente_titulo":  "### 🗣️ Cuéntame tu situación",
+        "card_asistente_titulo":  "### Cuéntame tu situación",
         "card_asistente_desc": (
             "Si no sabes por dónde empezar, descríbenos lo que necesitas "
             "con tus propias palabras y te diremos qué ayudas podrían corresponderte."
@@ -72,23 +72,23 @@ T: dict = {
         # → st.markdown(), texto de ejemplo en cursiva
         "card_asistente_ejemplo": "*«Soy autónomo y no puedo pagar el alquiler»*",
         # → st.caption()
-        "card_asistente_caption": "Sin formularios. Sin filtros. Solo escribe.",
+        "card_asistente_caption": "Sin formularios. Sin filtros. Solo escribe con garantía de privacidad.",
         # → st.page_link(label=...)
         "card_asistente_boton":   "Ir al asistente →",
 
         # ── Tarjeta 2: Buscador filtrado ──────────────────────────────────────
-        "card_buscador_titulo":  "### 🔍 Buscar por mi perfil",
+        "card_buscador_titulo":  "### Buscar por mi cuenta",
         "card_buscador_desc": (
-            "Si prefieres explorar tú mismo, selecciona tu situación "
-            "—laboral, familiar, colectivo— y te mostramos las "
-            "convocatorias abiertas que encajan contigo."
+            "Opción dirigida a gente con experiencia, "
+            "busca entre todas las ayudas con filtros y te mostramos las "
+            "convocatorias que encajan con tus criterios."
         ),
         "card_buscador_ejemplo":  "*Solo convocatorias abiertas y vigentes.*",
         "card_buscador_caption":  "Para quienes prefieren buscar con filtros.",
         "card_buscador_boton":    "Ir al buscador →",
 
         # ── Tarjeta 3: Mapa de recursos ───────────────────────────────────────
-        "card_recursos_titulo":  "### 🗺️ Encontrar ayuda cerca de mí",
+        "card_recursos_titulo":  "### Encontrar ayuda cerca de mí",
         "card_recursos_desc": (
             "Localiza centros, asociaciones y servicios sociales "
             "del Ayuntamiento de Valencia que atienden en persona "
@@ -116,7 +116,7 @@ T: dict = {
         "page_icon":  "🗣️",
 
         # → st.title()
-        "titulo":    "🗣️ Asistente de ayudas",
+        "titulo":    " Asistente de ayudas",
         # → st.markdown() bajo el título
         "subtitulo": (
             "Cuéntame tu situación con tus propias palabras y te diré "
@@ -152,7 +152,7 @@ T: dict = {
 
         # ── Cabecera de la sección ────────────────────────────────────────────
         # → st.markdown() — incluye el nivel de heading (###)
-        "titulo":    "### 🔍 Buscador de ayudas",
+        "titulo":    "### Buscador de ayudas",
         # → st.markdown()
         "subtitulo": (
             "Marca las opciones que describen tu situación y te mostraremos "
@@ -161,7 +161,7 @@ T: dict = {
 
         # ── Panel de filtros ──────────────────────────────────────────────────
         # → st.expander(label=...)
-        "filtros_expander": "🎛️ Filtros de perfil",
+        "filtros_expander": "Filtros de perfil",
         # → _checkbox_group(label=...) — encabezados de cada grupo de checkboxes
         "filtro_laboral":        "Situación laboral",
         "filtro_familiar":       "Situación familiar",
@@ -179,7 +179,7 @@ T: dict = {
 
         # ── Botones de acción ─────────────────────────────────────────────────
         # → st.button(label=..., type="primary")
-        "btn_buscar":  "🔍 Buscar ayudas",
+        "btn_buscar":  " Buscar ayudas",
         # → st.button(label=...)
         "btn_limpiar": "✕ Limpiar filtros",
 
@@ -256,7 +256,9 @@ T: dict = {
         # → st.markdown()
         "subtitulo": (
             "Directorio de centros, asociaciones y servicios sociales del "
-            "Ayuntamiento de Valencia. Selecciona un colectivo para ver los recursos disponibles."
+            "Ayuntamiento de Valencia. \n\n Selecciona un colectivo para ver los recursos disponibles.\n\n"
+            "Haz en un recurso en el mapa para obtener información detallada.\n\n"
+            "Tambien puede pulsar el botón de un recurso de la lista más abajo para ubicar dicho recurso en el mapa."
         ),
 
         # ── Filtros ───────────────────────────────────────────────────────────
