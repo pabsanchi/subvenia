@@ -87,11 +87,35 @@ def apply():
     }}
 
     /* Ocultar el marker HTML para que no deje espacio en el layout */
-    .ayuda-card-marker, .recurso-card-marker, .inicio-card-marker {{
+    .ayuda-card-marker, .recurso-card-marker, .inicio-card-marker, .rec-lista-marker {{
         display: none !important;
         height: 0px !important;
         margin: 0px !important;
         padding: 0px !important;
+    }}
+
+    /* Listado de recursos — contenedor scrollable (Elemento 1)
+       Selector: stLayoutWrapper con overflow=auto que contiene el marker.
+       El atributo overflow="auto" identifica de forma única los st.container(height=N). */
+    div[data-testid="stLayoutWrapper"][overflow="auto"]:has(.rec-lista-marker) {{
+        background-color: {secondary_bg} !important;
+        border: 1px solid #C8A882 !important;
+        border-radius: 8px !important;
+        padding: 4px !important;
+    }}
+    div[data-testid="stVerticalBlock"][overflow="auto"]:has(.rec-lista-marker) {{
+        background-color: {secondary_bg} !important;
+        border-radius: 6px !important;
+    }}
+
+    /* Listado de recursos — cada fila/item (Elemento 2)
+       Selector: stLayoutWrapper hijo directo del bloque scrollable. */
+    div[data-testid="stVerticalBlock"][overflow="auto"]:has(.rec-lista-marker)
+    > div[data-testid="stLayoutWrapper"] {{
+        background-color: {input_bg} !important;
+        border-radius: 6px !important;
+        padding: 4px 8px !important;
+        margin-bottom: 4px !important;
     }}
 
     /* Expanders (incluyendo cabecera y contenido interno) */

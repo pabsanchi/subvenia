@@ -227,6 +227,7 @@ def render() -> None:
         list_df = list_df.head(_MAX_LIST)
 
     with st.container(height=min(420, 20 + 68 * len(list_df))):
+        st.markdown('<div class="rec-lista-marker"></div>', unsafe_allow_html=True)
         for idx, row in list_df.iterrows():
             desc = row["descripcion"]
             tit = row["titularidad"] if pd.notna(row["titularidad"]) else ""
