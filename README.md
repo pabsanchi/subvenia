@@ -70,7 +70,10 @@ SubvenIA ofrece tres herramientas accesibles desde la barra lateral de navegaci�
 **Cómo funciona:** El usuario describe su situación en lenguaje natural y recibe una respuesta personalizada. Sin necesidad de conocer categorías ni filtros.  
 **Fuente de datos:** BDNS (vía MongoDB Atlas + Ollama/Llama3)
 
+Asistente antes de consulta:
 ![Asistente — esperando consulta](<docs/imagenes/1 Rag antes de responder.png>)
+
+Asistente despues de una consulta:
 ![Asistente — respuesta generada](<docs/imagenes/2 Rag resultado.png>)
 
 ### Buscador de ayudas
